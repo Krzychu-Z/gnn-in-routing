@@ -1,0 +1,5 @@
+FROM kathara/quagga:debian10
+LABEL owner="zerebecki@student.agh.edu.pl"
+LABEL maintainer="zerebecki@student.agh.edu.pl"
+
+RUN chown -R quagga.quagga /etc/quagga
