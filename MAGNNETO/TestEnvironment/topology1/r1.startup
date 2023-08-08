@@ -1,5 +1,7 @@
-ifconfig eth0 10.0.1.1 netmask 255.255.255.0 up
-ifconfig eth1 10.0.2.1 netmask 255.255.255.0 up
-ifconfig eth2 10.0.3.1 netmask 255.255.255.0 up
-ifconfig eth3 10.0.4.1 netmask 255.255.255.0 up
+ifconfig eth0 10.0.2.1 netmask 255.255.255.0 up
+ifconfig eth1 10.0.3.1 netmask 255.255.255.0 up
+ifconfig eth2 10.0.4.1 netmask 255.255.255.0 up
+ifconfig eth3 10.0.1.1 netmask 255.255.255.0 up
+ifconfig eth4 1.1.1.1 netmask 255.255.255.255 up
 /etc/init.d/frr start
+python3 shared/packets.py
