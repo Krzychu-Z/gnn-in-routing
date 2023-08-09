@@ -1,0 +1,7 @@
+# Kathara base image with additional pip packages
+# ---- List ----
+# - requests
+# - numpy
+FROM kathara/base:debian10
+
+RUN pip3 install requests numpy

@@ -2,7 +2,7 @@
 # Source: https://github.com/KatharaFramework/Docker-Images/blob/master/debian10/frr/Dockerfile
 # ---- List ----
 # - Flask
-FROM kathara/base:debian100
+FROM kathara/base:debian10
 
 RUN curl -s https://deb.frrouting.org/frr/keys.asc | apt-key add -
 
@@ -16,4 +16,4 @@ RUN sed -i -e 's/service/no service/' /etc/frr/vtysh.conf &&\
 RUN apt clean &&\
     rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
 
-RUN pip3 install flask
+RUN pip3 install requests flask
