@@ -1,3 +1,4 @@
+import json
 import requests
 import numpy as np
 
@@ -8,7 +9,7 @@ router_stats = {}
 
 while search:
     # Perform GET request
-    request_string = "http://" + str(index) + "." + str(index) + "." + str(index) + "." + str(index) + ":8000/"
+    request_string = "http://"+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+":8000/api/packets"
     try:
         response = requests.get(request_string)
     except OSError:
@@ -80,6 +81,24 @@ for edge in edges:
 # Max Normalisation - we need to maintain zero values as they denote that a direct link between X and Y does not exist
 maximum = np.max(traffic_matrix)
 
-print(traffic_matrix)
 traffic_matrix /= maximum
-print(traffic_matrix)
+
+
+# Send the matrix to each distributed agent
+# For each router fetch all interface statistics
+search = True
+index = 1
+
+while search:
+    # Perform GET request
+    request_string = "http://"+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+":8000/api/trafficMatrix"
+    try:
+        data = {'matrix': traffic_matrix.tolist()}
+        response = requests.post(request_string, data=json.dumps(data), headers={"Content-Type": "application/json"})
+    except OSError:
+        search = False
+    else:
+        # Add JSON to router statistics
+        if response.status_code == 200:
+            print("Response from "+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+": " + str(response.json()))
+            index += 1

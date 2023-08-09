@@ -3,4 +3,4 @@ ifconfig eth1 10.0.5.2 netmask 255.255.255.0 up
 ifconfig eth2 10.0.10.2 netmask 255.255.255.0 up
 ifconfig eth3 2.2.2.2 netmask 255.255.255.255 up
 /etc/init.d/frr start
-python3 shared/packets.py
+python3 shared/api.py
