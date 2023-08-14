@@ -1,5 +1,6 @@
 from flask import Flask, request
 import packets
+from ml.agent import Agent
 import json
 
 app = Flask(__name__)
@@ -13,7 +14,12 @@ def packet_count_api():
 @app.post('/api/trafficMatrix')
 def receive_tm():
     data = request.get_json()
-    print(data)
+    link_agent = Agent(data['matrix'], data['edges'], "eth0")
+    error = link_agent.set_initial_local_state()
+    if error == 255:
+        print("Interface couldn't be mapped to a destination router!")
+    else:
+        print(link_agent.local_state)
     response_data = {'message': 'Traffic matrix received successfully'}
     return json.dumps(response_data), 200
 

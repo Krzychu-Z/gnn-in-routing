@@ -44,11 +44,18 @@ while router_stats:
                 current_network = '.'.join(current_ip.rsplit('.', 1)[:-1])
                 # Same network!
                 if current_network == buffer['network']:
+                    # Data for edge analysis (interfaces)
                     link_data = {'pair': buffer['device_name'] + router}
-                    to_buffer_string = "to_" + buffer['device_name'] + "_avg"
-                    to_router_string = "to_" + router + "_avg"
-                    link_data[to_buffer_string] = (int(buffer['RX']) + int(router_stats[router][interface]['TX']))/2
-                    link_data[to_router_string] = (int(buffer['TX']) + int(router_stats[router][interface]['RX']))/2
+                    to_buffer_name = "to_" + buffer['device_name']
+                    to_router_name = "to_" + router
+                    link_data[to_buffer_name] = interface
+                    link_data[to_router_name] = buffer['interface_name']
+
+                    # Data for traffic matrix analysis
+                    to_buffer_avg = "to_" + buffer['device_name'] + "_avg"
+                    to_router_avg = "to_" + router + "_avg"
+                    link_data[to_buffer_avg] = (int(buffer['RX']) + int(router_stats[router][interface]['TX']))/2
+                    link_data[to_router_avg] = (int(buffer['TX']) + int(router_stats[router][interface]['RX']))/2
                     edges.append(link_data)
                     # Remove linked interface's keys (2 keys)
                     del router_stats[router][interface]
@@ -93,7 +100,7 @@ while search:
     # Perform GET request
     request_string = "http://"+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+":8000/api/trafficMatrix"
     try:
-        data = {'matrix': traffic_matrix.tolist()}
+        data = {'matrix': traffic_matrix.tolist(), 'edges': edges}
         response = requests.post(request_string, data=json.dumps(data), headers={"Content-Type": "application/json"})
     except OSError:
         search = False
