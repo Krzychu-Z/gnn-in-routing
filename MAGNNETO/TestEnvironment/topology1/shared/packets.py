@@ -2,13 +2,18 @@ import subprocess
 import json
 
 
-def packet_counter():
+def get_interfaces():
     # Fetch list of interfaces on the device without loopback and two last (dummy and PC) interfaces
     interfaces_command = "netstat -i | awk 'NR>=3 && $1 != \"lo\" {print $1}' | head -n -2"
     interfaces = subprocess.run(interfaces_command, capture_output=True, shell=True, check=True, text=True)
 
-    # Output JSON
+    return interfaces
 
+
+def packet_counter():
+    interfaces = get_interfaces()
+
+    # Output JSON
     output = {}
 
     for each in interfaces.stdout.splitlines():
