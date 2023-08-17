@@ -4,6 +4,7 @@ from ml.agent import Agent
 import json
 
 app = Flask(__name__)
+agent_list = []
 
 
 @app.get('/api/packets')
@@ -18,15 +19,33 @@ def receive_tm():
 
     for each in interfaces.stdout.splitlines():
         link_agent = Agent(data['matrix'], data['edges'], each)
-        error = link_agent.set_initial_local_state()
-        if error == 255:
-            print("Interface couldn't be mapped to a destination router!")
-        else:
-            print(link_agent.local_state)
+        agent_list.append(link_agent)
 
     response_data = {'message': 'Traffic matrix received successfully'}
 
-    return json.dumps(response_data), 200
+    return json.dumps(response_data)
+
+
+@app.get('/api/getHiddenStates')
+def get_hidden_states():
+    # API gets request from src=N router
+    request_router_nr = request.args.get('src')
+    output = {}
+    for each in agent_list:
+        # If agent link has a destination in requesting router - exclude this link
+        if int(request_router_nr) != int(each.dst_router_nr):
+            output[each.interface] = each.hidden_state.tolist()
+
+    return output
+
+
+@app.get('/api/testEndpoint')
+def test():
+    void = {}
+    for each in agent_list:
+        each.message_passing()
+
+    return void
 
 
 if __name__ == '__main__':

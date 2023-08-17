@@ -2,6 +2,7 @@ import json
 import subprocess
 import re
 import numpy as np
+import requests
 
 """
 Hyperparameters
@@ -22,8 +23,8 @@ class Agent:
     Assumptions:
     - agent is per link
     - initial local state is simply a cell from traffic matrix
+    - link neighbourhood is understood as other links connected to destination router
     """
-    local_state = 0
     current_weight = 10     # Default OSPF metric
     hidden_state = np.zeros(16, dtype=float)
     src_router_nr = 0
@@ -37,7 +38,7 @@ class Agent:
         self.set_weight()
         self.set_source_router()
         self.set_destination_router()
-        self.set_initial_local_state()
+        self.set_initial_hidden_state()
 
     def set_weight(self):
         interface_ospf_command = "vtysh -c \"do sh ip ospf interface " + self.interface + " json\""
@@ -75,7 +76,7 @@ class Agent:
                     self.dst_router_nr = int(dst_router_name.replace("R", ""))
                     break
 
-    def set_initial_local_state(self):
+    def set_initial_hidden_state(self):
         # Map router numbers to traffic matrix positions and return value
         if self.src_router_nr == 0:
             print("Source router number has not been established. Couldn't set initial local state.")
@@ -86,8 +87,28 @@ class Agent:
         else:
             left_index = int(self.src_router_nr) - 1
             right_index = self.dst_router_nr - 1
-            self.local_state = self.traffic_matrix[left_index][right_index]
+            local_state = self.traffic_matrix[left_index][right_index]
+            self.hidden_state[0] = local_state
             return 0
 
-    def get_hidden_state(self):
-        return self.hidden_state
+    # def message(self):
+
+
+    def message_passing(self):
+        request_string = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr) + ":8000/api/getHiddenStates"
+        for _ in range(MESSAGE_STEPS):
+            # Get neighbouring hidden states
+            neighbouring_hidden_states = []
+            try:
+                response = requests.get(request_string)
+            except OSError as e:
+                print("Error: Could not contact API (/api/getHiddenStates): " + repr(e))
+            else:
+                # Add hidden state to list
+                if response.status_code == 200:
+                    # print(response.json())
+                    for each in response.json():
+                        array = np.array(each)
+                        neighbouring_hidden_states.append(array)
+
+            # Apply message function
