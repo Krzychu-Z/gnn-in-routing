@@ -3,6 +3,10 @@ import subprocess
 import re
 import numpy as np
 import requests
+import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.optimizers import Adam
 
 """
 Hyperparameters
@@ -24,11 +28,16 @@ class Agent:
     - agent is per link
     - initial local state is simply a cell from traffic matrix
     - link neighbourhood is understood as other links connected to destination router
+    - hidden initial state consists of one initial local state and link weight
+    - aggregate function takes array of arrays returned by message function, performs element-wise min operation
     """
     current_weight = 10     # Default OSPF metric
     hidden_state = np.zeros(16, dtype=float)
     src_router_nr = 0
     dst_router_nr = 0
+
+    # ML models
+    message_model = Sequential()
 
     def __init__(self, tm, edges, eth):
         self.traffic_matrix = tm
@@ -39,6 +48,8 @@ class Agent:
         self.set_source_router()
         self.set_destination_router()
         self.set_initial_hidden_state()
+        # Initialise message NN model
+        self.message_mlp()
 
     def set_weight(self):
         interface_ospf_command = "vtysh -c \"do sh ip ospf interface " + self.interface + " json\""
@@ -87,15 +98,36 @@ class Agent:
         else:
             left_index = int(self.src_router_nr) - 1
             right_index = self.dst_router_nr - 1
-            local_state = self.traffic_matrix[left_index][right_index]
-            self.hidden_state[0] = local_state
+            link_utilisation = self.traffic_matrix[left_index][right_index]
+            self.hidden_state[0] = self.current_weight
+            self.hidden_state[1] = link_utilisation
             return 0
 
-    # def message(self):
+    def message_mlp(self):
+        # Create a 2D vector consisting of node hidden state and neighbouring hidden state
+        self.message_model.add(Dense(32, activation='relu', input_shape=(2, self.hidden_state.shape[0])))
+        self.message_model.add(Dense(64, activation='relu'))
+        self.message_model.add(Dense(32, activation='relu'))
+        self.message_model.add(Dense(self.hidden_state.shape))
 
+        loss_fn = tf.keras.losses.MeanSquaredError
+        self.message_model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
+
+    def message(self, n_hidden_states):
+        hidden_states_prepared = [np.vstack((x, self.hidden_state)) for x in n_hidden_states]
+        hidden_states_trained = []
+
+        # Mix messages separately
+        for each in hidden_states_prepared:
+            result = self.message_model.predict(each)
+            hidden_states_trained.append(result)
+
+        return hidden_states_trained
 
     def message_passing(self):
-        request_string = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr) + ":8000/api/getHiddenStates"
+        request_string_address = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
+        request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
+        request_string = request_string_address + request_string_purl
         for _ in range(MESSAGE_STEPS):
             # Get neighbouring hidden states
             neighbouring_hidden_states = []
@@ -106,9 +138,12 @@ class Agent:
             else:
                 # Add hidden state to list
                 if response.status_code == 200:
-                    # print(response.json())
-                    for each in response.json():
-                        array = np.array(each)
+                    data = response.json()
+                    for each in data:
+                        array = np.array(data[each])
                         neighbouring_hidden_states.append(array)
 
             # Apply message function
+            print(neighbouring_hidden_states)
+            test = self.message(neighbouring_hidden_states)
+            print(test)
