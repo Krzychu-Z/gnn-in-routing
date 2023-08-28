@@ -102,7 +102,7 @@ class Agent:
             self.hidden_state[1] = link_utilisation
             return 0
 
-    def message_mlp(self):
+    def message_passing_mlp(self):
         message_model = Sequential()
         # Create a 2D vector consisting of node hidden state and neighbouring hidden state
         message_model.add(Dense(32, activation='relu', input_shape=(2, self.hidden_state.shape[0])))
@@ -134,12 +134,21 @@ class Agent:
             msg_output = np.append(msg_output, min_vals.reshape(1, -1), axis=0)
             return np.amax(msg_output, axis=0)
 
+    def update(self, aggregated, model):
+        combination = np.append(self.hidden_state.reshape(1, -1), aggregated.reshape(1, -1), axis=0)
+        # Wrapping with another dimension
+        combination = combination[np.newaxis, :]
+        new_h = model.predict(combination)
+
+        return new_h
+
     def message_passing(self):
         request_string_address = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
 
-        message_model = self.message_mlp()
+        message_model = self.message_passing_mlp()
+        update_model = self.message_passing_mlp()
 
         for _ in range(MESSAGE_STEPS):
             # Get neighbouring hidden states
@@ -158,7 +167,9 @@ class Agent:
 
             # Apply message function
             messages_out = self.message(neighbouring_hidden_states, message_model)
-            print("m:", messages_out)
             # Apply aggregation function
             big_m = self.aggregate(messages_out)
-            print("M_k:", big_m)
+            # Apply update function
+            new_hidden_state = self.update(big_m, update_model)
+            new_hidden_state = np.squeeze(new_hidden_state)
+            print("h_(k+1):", new_hidden_state)
