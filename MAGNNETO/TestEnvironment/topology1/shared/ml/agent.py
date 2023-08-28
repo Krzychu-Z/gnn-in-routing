@@ -5,7 +5,7 @@ import numpy as np
 import requests
 import tensorflow as tf
 from keras.models import Sequential
-from keras.layers import Dense, Flatten, Reshape
+from keras.layers import Dense, Flatten
 from keras.optimizers import Adam
 
 """
@@ -30,6 +30,8 @@ class Agent:
     - link neighbourhood is understood as other links connected to destination router
     - hidden initial state consists of one initial local state and link weight
     - aggregate function takes array of arrays returned by message function, performs element-wise min operation
+    creating additional array after that it performs max operation on all arrays to create aggregation
+    (when message function returns only one array, aggregation returns one array unchanged)
     """
     current_weight = 10     # Default OSPF metric
     hidden_state = np.zeros(16, dtype=float)
@@ -106,15 +108,17 @@ class Agent:
         message_model.add(Dense(32, activation='relu', input_shape=(2, self.hidden_state.shape[0])))
         message_model.add(Dense(64, activation='relu'))
         message_model.add(Dense(32, activation='relu'))
-        message_model.add(Dense(8))
+        message_model.add(Dense(self.hidden_state.shape[0]/2))
         message_model.add(Flatten())
-        message_model.summary()
 
         loss_fn = tf.keras.losses.MeanSquaredError
         message_model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
 
         return message_model
 
+    """
+    Three agent functions mentioned in the paper
+    """
     def message(self, n_hidden_states, model):
         hidden_states_prepared = [np.vstack((x, self.hidden_state)) for x in n_hidden_states]
         hidden_states_prepared = np.array(hidden_states_prepared)
@@ -122,8 +126,13 @@ class Agent:
 
         return hidden_states_trained
 
-    # def update(self):
-
+    def aggregate(self, msg_output):
+        if msg_output.shape == (1, self.hidden_state.shape[0]):
+            return msg_output
+        else:
+            min_vals = np.amin(msg_output, axis=0)
+            msg_output = np.append(msg_output, min_vals.reshape(1, -1), axis=0)
+            return np.amax(msg_output, axis=0)
 
     def message_passing(self):
         request_string_address = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
@@ -148,5 +157,8 @@ class Agent:
                         neighbouring_hidden_states.append(array)
 
             # Apply message function
-            test = self.message(neighbouring_hidden_states, message_model)
-            print(test)
+            messages_out = self.message(neighbouring_hidden_states, message_model)
+            print("m:", messages_out)
+            # Apply aggregation function
+            big_m = self.aggregate(messages_out)
+            print("M_k:", big_m)
