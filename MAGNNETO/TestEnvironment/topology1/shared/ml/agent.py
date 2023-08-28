@@ -5,7 +5,7 @@ import numpy as np
 import requests
 import tensorflow as tf
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Flatten, Reshape
 from keras.optimizers import Adam
 
 """
@@ -36,9 +36,6 @@ class Agent:
     src_router_nr = 0
     dst_router_nr = 0
 
-    # ML models
-    message_model = Sequential()
-
     def __init__(self, tm, edges, eth):
         self.traffic_matrix = tm
         self.edges = edges
@@ -49,7 +46,7 @@ class Agent:
         self.set_destination_router()
         self.set_initial_hidden_state()
         # Initialise message NN model
-        self.message_mlp()
+        # self.message_mlp()
 
     def set_weight(self):
         interface_ospf_command = "vtysh -c \"do sh ip ospf interface " + self.interface + " json\""
@@ -104,30 +101,37 @@ class Agent:
             return 0
 
     def message_mlp(self):
+        message_model = Sequential()
         # Create a 2D vector consisting of node hidden state and neighbouring hidden state
-        self.message_model.add(Dense(32, activation='relu', input_shape=(2, self.hidden_state.shape[0])))
-        self.message_model.add(Dense(64, activation='relu'))
-        self.message_model.add(Dense(32, activation='relu'))
-        self.message_model.add(Dense(self.hidden_state.shape))
+        message_model.add(Dense(32, activation='relu', input_shape=(2, self.hidden_state.shape[0])))
+        message_model.add(Dense(64, activation='relu'))
+        message_model.add(Dense(32, activation='relu'))
+        message_model.add(Dense(8))
+        message_model.add(Flatten())
+        message_model.summary()
 
         loss_fn = tf.keras.losses.MeanSquaredError
-        self.message_model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
+        message_model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
 
-    def message(self, n_hidden_states):
+        return message_model
+
+    def message(self, n_hidden_states, model):
         hidden_states_prepared = [np.vstack((x, self.hidden_state)) for x in n_hidden_states]
-        hidden_states_trained = []
-
-        # Mix messages separately
-        for each in hidden_states_prepared:
-            result = self.message_model.predict(each)
-            hidden_states_trained.append(result)
+        hidden_states_prepared = np.array(hidden_states_prepared)
+        hidden_states_trained = model.predict(hidden_states_prepared)
 
         return hidden_states_trained
+
+    # def update(self):
+
 
     def message_passing(self):
         request_string_address = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
+
+        message_model = self.message_mlp()
+
         for _ in range(MESSAGE_STEPS):
             # Get neighbouring hidden states
             neighbouring_hidden_states = []
@@ -144,6 +148,5 @@ class Agent:
                         neighbouring_hidden_states.append(array)
 
             # Apply message function
-            print(neighbouring_hidden_states)
-            test = self.message(neighbouring_hidden_states)
+            test = self.message(neighbouring_hidden_states, message_model)
             print(test)
