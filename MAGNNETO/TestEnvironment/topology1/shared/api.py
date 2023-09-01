@@ -44,6 +44,7 @@ def test():
     void = {}
     for each in agent_list:
         each.message_passing()
+        print(each.readout())
 
     return void
 

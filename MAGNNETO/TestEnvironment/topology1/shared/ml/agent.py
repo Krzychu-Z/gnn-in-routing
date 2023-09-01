@@ -14,7 +14,8 @@ Hyperparameters
 DISCOUNT = 0.97
 BETA = 0.9
 EPSILON = 0.01
-LEARNING_RATE = 0.0003
+MPNN_LEARNING_RATE = 0.0003
+READOUT_LEARNING_RATE = 0.001
 CLIPPING_PARAM = 0.2
 PERIOD_COUNT = 20         # in paper - T
 MESSAGE_STEPS = 4        # in paper - K
@@ -32,6 +33,12 @@ class Agent:
     - aggregate function takes array of arrays returned by message function, performs element-wise min operation
     creating additional array after that it performs max operation on all arrays to create aggregation
     (when message function returns only one array, aggregation returns one array unchanged)
+    - global state is defined as a list of mean traffic at each node with binning applied (accuracy to within one-tenth)
+    (this data is simply transformed traffic matrix) - this reduces space complexity to simply O(n) = 11^n, where n is
+    a number of nodes in the network. Furthermore, normalising to [0, 1] and binning into [0, 0.5] and (0.5, 1]
+    reduces space complexity to 2^n, so that finally global state is an integer ranging from 1 to 2^n
+    - global action is defined as a list of logit values for each link in the network (if value >= 0, then increase
+    OSPF weight)
     """
     current_weight = 10     # Default OSPF metric
     hidden_state = np.zeros(16, dtype=float)
@@ -47,8 +54,9 @@ class Agent:
         self.set_source_router()
         self.set_destination_router()
         self.set_initial_hidden_state()
-        # Initialise message NN model
+        # Initialise NN models
         # self.message_mlp()
+        self.readout_model = self.readout_mlp()
 
     def set_weight(self):
         interface_ospf_command = "vtysh -c \"do sh ip ospf interface " + self.interface + " json\""
@@ -102,6 +110,9 @@ class Agent:
             self.hidden_state[1] = link_utilisation
             return 0
 
+    """
+    Fully-connected NN models
+    """
     def message_passing_mlp(self):
         message_model = Sequential()
         # Create a 2D vector consisting of node hidden state and neighbouring hidden state
@@ -112,9 +123,25 @@ class Agent:
         message_model.add(Flatten())
 
         loss_fn = tf.keras.losses.MeanSquaredError
-        message_model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
+        message_model.compile(optimizer=Adam(learning_rate=MPNN_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
 
         return message_model
+
+    def readout_mlp(self):
+        readout_model = Sequential()
+        # Analyse only final hidden state
+        readout_model.add(Dense(32, activation='relu', input_shape=(1,)))
+        readout_model.add(Dense(64, activation='relu'))
+        readout_model.add(Dense(16, activation='relu'))
+        readout_model.add(Dense(8, activation='relu'))
+        readout_model.add(Dense(2, activation='relu'))
+        # Q-value reward
+        readout_model.add(Dense(1, activation='relu'))
+
+        loss_fn = tf.keras.losses.MeanSquaredError
+        readout_model.compile(optimizer=Adam(learning_rate=READOUT_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
+
+        return readout_model
 
     """
     Three agent functions mentioned in the paper
@@ -147,6 +174,7 @@ class Agent:
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
 
+        # There was an issue while trying to make these models global
         message_model = self.message_passing_mlp()
         update_model = self.message_passing_mlp()
 
@@ -172,4 +200,11 @@ class Agent:
             # Apply update function
             new_hidden_state = self.update(big_m, update_model)
             new_hidden_state = np.squeeze(new_hidden_state)
-            print("h_(k+1):", new_hidden_state)
+            # Assign new hidden state
+            self.hidden_state = new_hidden_state
+
+    def readout(self):
+        decision = self.readout_model.predict(self.hidden_state)
+
+        return decision
+
