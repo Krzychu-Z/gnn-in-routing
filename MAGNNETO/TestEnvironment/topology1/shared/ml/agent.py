@@ -130,13 +130,13 @@ class Agent:
     def readout_mlp(self):
         readout_model = Sequential()
         # Analyse only final hidden state
-        readout_model.add(Dense(32, activation='relu', input_shape=(1,)))
+        readout_model.add(Dense(32, activation='relu', input_shape=(16,)))
         readout_model.add(Dense(64, activation='relu'))
         readout_model.add(Dense(16, activation='relu'))
         readout_model.add(Dense(8, activation='relu'))
         readout_model.add(Dense(2, activation='relu'))
         # Q-value reward
-        readout_model.add(Dense(1, activation='relu'))
+        readout_model.add(Dense(1, activation=None))
 
         loss_fn = tf.keras.losses.MeanSquaredError
         readout_model.compile(optimizer=Adam(learning_rate=READOUT_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
@@ -204,7 +204,8 @@ class Agent:
             self.hidden_state = new_hidden_state
 
     def readout(self):
-        decision = self.readout_model.predict(self.hidden_state)
+        hidden_state_correct = self.hidden_state[np.newaxis, :]
+        decision = self.readout_model.predict(hidden_state_correct)
 
         return decision
 
