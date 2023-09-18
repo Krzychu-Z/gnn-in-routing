@@ -131,12 +131,11 @@ class Agent:
         readout_model = Sequential()
         # Analyse only final hidden state
         readout_model.add(Dense(32, activation='relu', input_shape=(16,)))
-        readout_model.add(Dense(64, activation='relu'))
-        readout_model.add(Dense(16, activation='relu'))
-        readout_model.add(Dense(8, activation='relu'))
-        readout_model.add(Dense(2, activation='relu'))
-        # Q-value reward
-        readout_model.add(Dense(1, activation=None))
+        readout_model.add(Dense(32*len(self.edges), activation='relu'))
+        readout_model.add(Dense(8*len(self.edges), activation='relu'))
+        readout_model.add(Dense(1.5*len(self.edges), activation='relu'))
+        # logit list for each link
+        readout_model.add(Dense(len(self.edges), activation=None))
 
         loss_fn = tf.keras.losses.MeanSquaredError
         readout_model.compile(optimizer=Adam(learning_rate=READOUT_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
@@ -208,4 +207,3 @@ class Agent:
         decision = self.readout_model.predict(hidden_state_correct)
 
         return decision
-
