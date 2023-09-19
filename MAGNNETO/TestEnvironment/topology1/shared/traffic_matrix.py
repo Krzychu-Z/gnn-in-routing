@@ -2,6 +2,7 @@ import json
 import requests
 import numpy as np
 
+
 # For each router fetch all interface statistics
 search = True
 index = 1
@@ -9,7 +10,7 @@ router_stats = {}
 
 while search:
     # Perform GET request
-    request_string = "http://"+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+":8000/api/packets"
+    request_string = "http://" + 3*(str(index)+".") + str(index) + ":8000/api/packets"
     try:
         response = requests.get(request_string)
     except OSError:
@@ -25,6 +26,10 @@ while search:
 edges = []
 buffer = {}
 router_count = len(router_stats)
+# Creating actual traffic matrix
+# Traffic direction goes as: columns to rows
+traffic_matrix = np.zeros((router_count, router_count), dtype=float)
+
 
 # Match IP addresses in links
 break_out_flag = False
@@ -72,9 +77,6 @@ while router_stats:
     # This removes empty router dicts
     router_stats = {k: v for k, v in router_stats.items() if v}
 
-# Creating actual traffic matrix
-# Traffic direction goes as: columns to rows
-traffic_matrix = np.zeros((router_count, router_count), dtype=float)
 
 for edge in edges:
     indices = [index for index in edge['pair'].split('R') if index != '']
@@ -91,21 +93,22 @@ maximum = np.max(traffic_matrix)
 traffic_matrix /= maximum
 
 
-# Send the matrix to each distributed agent
-# For each router fetch all interface statistics
-search = True
-index = 1
+def send_tm():
+    # Send the matrix to each distributed agent
+    # For each router fetch all interface statistic
+    search_send = True
+    index_send = 1
 
-while search:
-    # Perform GET request
-    request_string = "http://"+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+":8000/api/trafficMatrix"
-    try:
-        data = {'matrix': traffic_matrix.tolist(), 'edges': edges}
-        response = requests.post(request_string, data=json.dumps(data), headers={"Content-Type": "application/json"})
-    except OSError:
-        search = False
-    else:
-        # Add JSON to router statistics
-        if response.status_code == 200:
-            print("Response from "+str(index)+"."+str(index)+"."+str(index)+"."+str(index)+": " + str(response.json()))
-            index += 1
+    while search_send:
+        # Perform GET request
+        request_send = "http://" + 3*(str(index_send)+".") + str(index_send) + ":8000/api/trafficMatrix"
+        try:
+            data = {'matrix': traffic_matrix.tolist(), 'edges': edges}
+            res = requests.post(request_send, data=json.dumps(data), headers={"Content-Type": "application/json"})
+        except OSError:
+            search_send = False
+        else:
+            # Add JSON to router statistics
+            if res.status_code == 200:
+                print("Response from " + 3*(str(index_send)+".") + str(index_send) + ": " + str(res.json()))
+                index_send += 1

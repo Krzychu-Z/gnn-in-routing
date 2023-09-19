@@ -1,6 +1,6 @@
 from flask import Flask, request
 import packets
-from ml.agent import Agent
+from agent import Agent
 import json
 
 app = Flask(__name__)
@@ -39,14 +39,30 @@ def get_hidden_states():
     return output
 
 
-@app.get('/api/testEndpoint')
-def test():
+@app.get('/api/messagePass')
+def mp():
     void = {}
     for each in agent_list:
         each.message_passing()
-        print(each.readout())
 
     return void
+
+
+@app.get('/api/getReadouts')
+def get_readouts():
+    output = {}
+    for each in agent_list:
+        record = each.readout()
+        output[each.interface] = record
+
+    return output
+
+
+@app.get('/api/testEndpoint')
+def test():
+    for each in agent_list:
+        print("Voting from this agent: " + str(each.interface))
+        print(each.voting_function())
 
 
 if __name__ == '__main__':
