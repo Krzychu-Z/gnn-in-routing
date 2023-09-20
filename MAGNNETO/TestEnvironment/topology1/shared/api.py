@@ -1,9 +1,9 @@
-from flask import Flask, request
+from quart import Quart, request
 import packets
 from agent import Agent
 import json
 
-app = Flask(__name__)
+app = Quart(__name__)
 agent_list = []
 
 
@@ -67,4 +67,4 @@ def test():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000, certfile='cert.pem', keyfile='key.pem')

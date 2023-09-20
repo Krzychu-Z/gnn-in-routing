@@ -1,7 +1,7 @@
 # This is the official kathara/frr extension dockerfile. This modified version adds python packages to the image.
 # Source: https://github.com/KatharaFramework/Docker-Images/blob/master/debian10/frr/Dockerfile
 # ---- List ----
-# - Flask
+# - Flask (HTTP 1.1) / Quart (HTTP 2)
 # - Requests
 # - Numpy
 # - Tensorflow
@@ -20,4 +20,4 @@ RUN sed -i -e 's/service/no service/' /etc/frr/vtysh.conf &&\
 RUN apt clean &&\
     rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
 
-RUN pip3 install requests flask numpy tensorflow keras
+RUN pip3 install requests Quart numpy tensorflow keras
