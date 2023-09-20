@@ -44,6 +44,7 @@ def mp():
     void = {}
     for each in agent_list:
         each.message_passing()
+        void[each.interface] = "successful"
 
     return void
 

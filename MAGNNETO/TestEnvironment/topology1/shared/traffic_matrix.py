@@ -112,3 +112,5 @@ def send_tm():
             if res.status_code == 200:
                 print("Response from " + 3*(str(index_send)+".") + str(index_send) + ": " + str(res.json()))
                 index_send += 1
+
+    return index_send
