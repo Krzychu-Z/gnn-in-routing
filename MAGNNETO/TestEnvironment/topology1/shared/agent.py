@@ -148,7 +148,7 @@ class Agent:
     def message(self, n_hidden_states, model):
         hidden_states_prepared = [np.vstack((x, self.hidden_state)) for x in n_hidden_states]
         hidden_states_prepared = np.array(hidden_states_prepared)
-        hidden_states_trained = model.predict(hidden_states_prepared)
+        hidden_states_trained = model.predict(hidden_states_prepared, verbose=0)
 
         return hidden_states_trained
 
@@ -164,7 +164,7 @@ class Agent:
         combination = np.append(self.hidden_state.reshape(1, -1), aggregated.reshape(1, -1), axis=0)
         # Wrapping with another dimension
         combination = combination[np.newaxis, :]
-        new_h = model.predict(combination)
+        new_h = model.predict(combination, verbose=0)
 
         return new_h
 
@@ -204,7 +204,7 @@ class Agent:
 
     def readout(self):
         hidden_state_correct = self.hidden_state[np.newaxis, :]
-        decision = self.readout_model.predict(hidden_state_correct)
+        decision = self.readout_model.predict(hidden_state_correct, verbose=0)
 
         return decision
 

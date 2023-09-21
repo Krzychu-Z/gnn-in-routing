@@ -1,7 +1,6 @@
 import traffic_matrix
 import requests
 import concurrent.futures
-import time
 
 
 def single_agent_mp(index):
@@ -13,7 +12,6 @@ def single_agent_mp(index):
     print("    Details: " + str(response.json()))
 
 
-start = time.time()
 # Distribute traffic matrix
 router_count = traffic_matrix.send_tm()
 
@@ -23,6 +21,3 @@ for x in range(router_count - 1):
     pool.submit(single_agent_mp, x + 1)
 
 pool.shutdown(wait=True)
-stop = time.time()
-
-print(str(stop - start) + " sec.")
