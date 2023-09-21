@@ -7,7 +7,7 @@ import time
 def single_agent_mp(index):
     # Perform GET request
     request_string = "https://" + 3*(str(index)+".") + str(index) + ":8000/api/messagePass"
-    response = requests.get(request_string, verify='key.pem')
+    response = requests.get(request_string, verify="/shared/certs/cert" + str(index) + ".pem")
 
     print("Message passing at R" + str(index))
     print("    Details: " + str(response.json()))

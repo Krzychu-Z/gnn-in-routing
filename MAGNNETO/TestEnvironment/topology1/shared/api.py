@@ -13,12 +13,15 @@ def packet_count_api():
 
 
 @app.post('/api/trafficMatrix')
-def receive_tm():
-    data = request.get_json()
+async def receive_tm():
+    data = await request.get_json()
+
     interfaces = packets.get_interfaces()
 
     for each in interfaces.stdout.splitlines():
-        link_agent = Agent(data['matrix'], data['edges'], each)
+        matrix = data['matrix']
+        edges = data['edges']
+        link_agent = Agent(matrix, edges, each)
         agent_list.append(link_agent)
 
     response_data = {'message': 'Traffic matrix received successfully'}

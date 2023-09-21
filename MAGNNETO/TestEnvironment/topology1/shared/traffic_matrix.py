@@ -5,22 +5,22 @@ import numpy as np
 
 # For each router fetch all interface statistics
 search = True
-index = 1
+stats_index = 1
 router_stats = {}
 
 while search:
     # Perform GET request
-    request_string = "https://" + 3*(str(index)+".") + str(index) + ":8000/api/packets"
+    request_string = "https://" + 3*(str(stats_index)+".") + str(stats_index) + ":8000/api/packets"
     try:
-        response = requests.get(request_string, verify="/shared/certs/cert" + str(index) + ".pem")
+        response = requests.get(request_string, verify="/shared/certs/cert" + str(stats_index) + ".pem")
     except OSError:
         search = False
     else:
         # Add JSON to router statistics
         if response.status_code == 200:
-            router_id = "R" + str(index)
+            router_id = "R" + str(stats_index)
             router_stats[router_id] = response.json()
-            index += 1
+            stats_index += 1
 
 
 edges = []
@@ -105,7 +105,7 @@ def send_tm():
         try:
             data = {'matrix': traffic_matrix.tolist(), 'edges': edges}
             res = requests.post(request_send, data=json.dumps(data), headers={"Content-Type": "application/json"},
-                                verify='key.pem')
+                                verify="/shared/certs/cert" + str(index_send) + ".pem")
         except OSError:
             search_send = False
         else:

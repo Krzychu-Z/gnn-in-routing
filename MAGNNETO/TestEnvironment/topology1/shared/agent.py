@@ -181,7 +181,7 @@ class Agent:
             # Get neighbouring hidden states
             neighbouring_hidden_states = []
             try:
-                response = requests.get(request_string)
+                response = requests.get(request_string, verify="/shared/certs/cert" + str(self.dst_router_nr) + ".pem")
             except OSError as e:
                 print("Error: Could not contact API (/api/getHiddenStates): " + repr(e))
             else:
@@ -218,7 +218,7 @@ class Agent:
             request_string = "https://" + str(index) + "." + str(index) + "." + str(index) + "." + str(
                 index) + ":8000/api/getReadouts"
             try:
-                response = requests.get(request_string)
+                response = requests.get(request_string, verify="/shared/certs/cert" + str(index) + ".pem")
             except OSError:
                 search = False
             else:
