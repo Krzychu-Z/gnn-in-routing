@@ -169,7 +169,7 @@ class Agent:
         return new_h
 
     def message_passing(self):
-        request_string_address = "http://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
+        request_string_address = "https://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
 
@@ -215,7 +215,7 @@ class Agent:
 
         while search:
             # Perform GET request
-            request_string = "http://" + str(index) + "." + str(index) + "." + str(index) + "." + str(
+            request_string = "https://" + str(index) + "." + str(index) + "." + str(index) + "." + str(
                 index) + ":8000/api/getReadouts"
             try:
                 response = requests.get(request_string)

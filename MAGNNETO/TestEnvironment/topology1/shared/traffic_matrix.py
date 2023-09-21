@@ -10,9 +10,9 @@ router_stats = {}
 
 while search:
     # Perform GET request
-    request_string = "http://" + 3*(str(index)+".") + str(index) + ":8000/api/packets"
+    request_string = "https://" + 3*(str(index)+".") + str(index) + ":8000/api/packets"
     try:
-        response = requests.get(request_string)
+        response = requests.get(request_string, verify="/shared/certs/cert" + str(index) + ".pem")
     except OSError:
         search = False
     else:
@@ -101,10 +101,11 @@ def send_tm():
 
     while search_send:
         # Perform GET request
-        request_send = "http://" + 3*(str(index_send)+".") + str(index_send) + ":8000/api/trafficMatrix"
+        request_send = "https://" + 3*(str(index_send)+".") + str(index_send) + ":8000/api/trafficMatrix"
         try:
             data = {'matrix': traffic_matrix.tolist(), 'edges': edges}
-            res = requests.post(request_send, data=json.dumps(data), headers={"Content-Type": "application/json"})
+            res = requests.post(request_send, data=json.dumps(data), headers={"Content-Type": "application/json"},
+                                verify='key.pem')
         except OSError:
             search_send = False
         else:
