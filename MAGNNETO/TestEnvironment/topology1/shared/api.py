@@ -57,7 +57,7 @@ def get_readouts():
     output = {}
     for each in agent_list:
         record = each.readout()
-        output[each.interface] = record
+        output[each.interface] = record.tolist()
 
     return output
 
@@ -65,7 +65,6 @@ def get_readouts():
 @app.get('/api/testEndpoint')
 def test():
     for each in agent_list:
-        print("Voting from this agent: " + str(each.interface))
         print(each.voting_function())
 
 

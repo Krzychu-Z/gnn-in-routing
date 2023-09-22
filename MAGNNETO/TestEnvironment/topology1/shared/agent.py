@@ -228,4 +228,15 @@ class Agent:
                     readouts[router_id] = response.json()
                     index += 1
 
-        return readouts
+        vote_poll = []
+        initial_iteration = True
+        for router in readouts:
+            for interface in readouts[router]:
+                if initial_iteration:
+                    vote_poll = np.array(readouts[router][interface])
+                    initial_iteration = False
+                else:
+                    vote_poll = np.append(vote_poll, np.array(readouts[router][interface]), axis=0)
+
+        result = np.average(vote_poll, axis=0)
+        print("Result: ", result)
