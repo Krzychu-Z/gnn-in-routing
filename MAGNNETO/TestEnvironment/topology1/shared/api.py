@@ -1,5 +1,5 @@
 from quart import Quart, request
-import packets
+import utilisation
 from agent import Agent
 import json
 
@@ -7,16 +7,16 @@ app = Quart(__name__)
 agent_list = []
 
 
-@app.get('/api/packets')
+@app.get('/api/linkUtilisation')
 def packet_count_api():
-    return packets.packet_counter()
+    return utilisation.link_utilisation()
 
 
 @app.post('/api/trafficMatrix')
 async def receive_tm():
     data = await request.get_json()
 
-    interfaces = packets.get_interfaces()
+    interfaces = utilisation.get_interfaces()
 
     for each in interfaces.stdout.splitlines():
         matrix = data['matrix']
@@ -62,10 +62,10 @@ def get_readouts():
     return output
 
 
-@app.get('/api/testEndpoint')
+@app.get('/api/votingEndpoint')
 def test():
     for each in agent_list:
-        print(each.voting_function())
+        each.voting_function()
 
 
 if __name__ == '__main__':

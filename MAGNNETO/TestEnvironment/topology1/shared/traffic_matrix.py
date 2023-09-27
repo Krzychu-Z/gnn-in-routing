@@ -10,7 +10,7 @@ router_stats = {}
 
 while search:
     # Perform GET request
-    request_string = "https://" + 3*(str(stats_index)+".") + str(stats_index) + ":8000/api/packets"
+    request_string = "https://" + 3*(str(stats_index)+".") + str(stats_index) + ":8000/api/linkUtilisation"
     try:
         response = requests.get(request_string, verify="/shared/certs/cert" + str(stats_index) + ".pem")
     except OSError:
@@ -86,11 +86,6 @@ for edge in edges:
     indices[1] = int(indices[1]) - 1
     traffic_matrix[indices[1]][indices[0]] = edge[first_direction]
     traffic_matrix[indices[0]][indices[1]] = edge[second_direction]
-
-# Max Normalisation - we need to maintain zero values as they denote that a direct link between X and Y does not exist
-maximum = np.max(traffic_matrix)
-
-traffic_matrix /= maximum
 
 
 def send_tm():

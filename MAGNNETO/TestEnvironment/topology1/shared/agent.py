@@ -208,7 +208,8 @@ class Agent:
 
         return decision
 
-    def voting_function(self):
+    @staticmethod
+    def voting_function():
         search = True
         index = 1
         readouts = {}
@@ -239,4 +240,7 @@ class Agent:
                     vote_poll = np.append(vote_poll, np.array(readouts[router][interface]), axis=0)
 
         result = np.average(vote_poll, axis=0)
-        print("Result: ", result)
+        return result
+
+
+    # def increase_cost(self):
