@@ -17,7 +17,6 @@ EPSILON = 0.01
 MPNN_LEARNING_RATE = 0.0003
 READOUT_LEARNING_RATE = 0.001
 CLIPPING_PARAM = 0.2
-PERIOD_COUNT = 20         # in paper - T
 MESSAGE_STEPS = 4        # in paper - K
 
 
@@ -45,15 +44,13 @@ class Agent:
     src_router_nr = 0
     dst_router_nr = 0
 
-    def __init__(self, tm, edges, eth):
-        self.traffic_matrix = tm
-        self.edges = edges
+    def __init__(self, eth):
+        self.traffic_matrix = []
+        self.edges = []
         self.interface = eth
         # Set initial conditions on object construction
         self.set_weight()
         self.set_source_router()
-        self.set_destination_router()
-        self.set_initial_hidden_state()
         # Initialise NN models
         # self.message_mlp()
         self.readout_model = self.readout_mlp()
@@ -109,6 +106,12 @@ class Agent:
             self.hidden_state[0] = self.current_weight
             self.hidden_state[1] = link_utilisation
             return 0
+
+    def set_traffic_matrix(self, tm):
+        self.traffic_matrix = tm
+
+    def set_edge_list(self, edges):
+        self.edges = edges
 
     """
     Fully-connected NN models

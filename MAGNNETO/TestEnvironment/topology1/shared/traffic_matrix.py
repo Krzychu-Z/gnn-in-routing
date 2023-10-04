@@ -22,7 +22,6 @@ while search:
             router_stats[router_id] = response.json()
             stats_index += 1
 
-
 edges = []
 buffer = {}
 router_count = len(router_stats)
@@ -59,8 +58,8 @@ while router_stats:
                     # Data for traffic matrix analysis
                     to_buffer_avg = "to_" + buffer['device_name'] + "_avg"
                     to_router_avg = "to_" + router + "_avg"
-                    link_data[to_buffer_avg] = (int(buffer['RX']) + int(router_stats[router][interface]['TX']))/2
-                    link_data[to_router_avg] = (int(buffer['TX']) + int(router_stats[router][interface]['RX']))/2
+                    link_data[to_buffer_avg] = (buffer['RX'] + router_stats[router][interface]['TX'])/2
+                    link_data[to_router_avg] = (buffer['TX'] + router_stats[router][interface]['RX'])/2
                     edges.append(link_data)
                     # Remove linked interface's keys (2 keys)
                     del router_stats[router][interface]
@@ -92,21 +91,21 @@ def send_tm():
     # Send the matrix to each distributed agent
     # For each router fetch all interface statistic
     search_send = True
-    index_send = 1
+    index_send = 0
 
     while search_send:
         # Perform GET request
-        request_send = "https://" + 3*(str(index_send)+".") + str(index_send) + ":8000/api/trafficMatrix"
+        request_send = "https://" + 3*(str(index_send + 1)+".") + str(index_send + 1) + ":8000/api/updateAgent"
         try:
             data = {'matrix': traffic_matrix.tolist(), 'edges': edges}
             res = requests.post(request_send, data=json.dumps(data), headers={"Content-Type": "application/json"},
-                                verify="/shared/certs/cert" + str(index_send) + ".pem")
+                                verify="/shared/certs/cert" + str(index_send + 1) + ".pem")
         except OSError:
             search_send = False
         else:
             # Add JSON to router statistics
             if res.status_code == 200:
-                print("Response from " + 3*(str(index_send)+".") + str(index_send) + ": " + str(res.json()))
+                print("Response from " + 3*(str(index_send + 1)+".") + str(index_send + 1) + ": " + str(res.json()))
                 index_send += 1
 
     return index_send
