@@ -6,7 +6,7 @@
 # - Numpy
 # - Tensorflow
 # - Keras
-FROM kathara/base:debian10
+FROM kathara/base:latest
 
 RUN curl -s https://deb.frrouting.org/frr/keys.asc | apt-key add -
 
@@ -20,4 +20,7 @@ RUN sed -i -e 's/service/no service/' /etc/frr/vtysh.conf &&\
 RUN apt clean &&\
     rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
 
-RUN pip3 install requests Quart numpy tensorflow keras
+RUN apt install -y python3.11-venv &&\
+    python3 -m venv venv &&\
+    . venv/bin/activate &&\
+    pip3 install requests Quart hypercorn numpy tensorflow keras
