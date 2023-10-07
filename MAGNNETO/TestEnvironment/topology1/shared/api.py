@@ -32,6 +32,7 @@ async def receive_tm():
         edges = data['edges']
         agent.set_traffic_matrix(matrix)
         agent.set_edge_list(edges)
+        agent.initialise_readout_mpnn()
         if first_run:
             agent.set_destination_router()
             agent.set_initial_hidden_state()
@@ -59,8 +60,18 @@ def get_hidden_states():
 def mp():
     void = {}
     for each_worker in agent_list:
-        each_worker.message_passing()
+        each_worker.message_pass()
         void[each_worker.interface] = "successful"
+
+    return void
+
+
+@app.get('/api/updateHiddenStates')
+def new_h_state():
+    void = {}
+    for each_new_state in agent_list:
+        each_new_state.update_hidden_state()
+        void[each_new_state.interface] = "successful"
 
     return void
 
@@ -77,8 +88,12 @@ def get_readouts():
 
 @app.get('/api/votingEndpoint')
 def vote():
+    void = {}
     for each_voter in agent_list:
         print(each_voter.voting_function())
+        void[each_voter.interface] = "successful"
+
+    return void
 
 
 if __name__ == '__main__':

@@ -17,7 +17,6 @@ EPSILON = 0.01
 MPNN_LEARNING_RATE = 0.0003
 READOUT_LEARNING_RATE = 0.001
 CLIPPING_PARAM = 0.2
-MESSAGE_STEPS = 4        # in paper - K
 
 
 class Agent:
@@ -41,6 +40,7 @@ class Agent:
     """
     current_weight = 10     # Default OSPF metric
     hidden_state = np.zeros(16, dtype=float)
+    buffer_state = np.zeros(16, dtype=float)
     src_router_nr = 0
     dst_router_nr = 0
 
@@ -53,7 +53,7 @@ class Agent:
         self.set_source_router()
         # Initialise NN models
         # self.message_mlp()
-        self.readout_model = self.readout_mlp()
+        self.readout_model = None
 
     def set_weight(self):
         interface_ospf_command = "vtysh -c \"do sh ip ospf interface " + self.interface + " json\""
@@ -113,6 +113,10 @@ class Agent:
     def set_edge_list(self, edges):
         self.edges = edges
 
+    # Edge list is needed to initialise readout MPNN
+    def initialise_readout_mpnn(self):
+        self.readout_model = self.readout_mlp()
+
     """
     Fully-connected NN models
     """
@@ -171,7 +175,7 @@ class Agent:
 
         return new_h
 
-    def message_passing(self):
+    def message_pass(self):
         request_string_address = "https://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
@@ -180,30 +184,33 @@ class Agent:
         message_model = self.message_passing_mlp()
         update_model = self.message_passing_mlp()
 
-        for _ in range(MESSAGE_STEPS):
-            # Get neighbouring hidden states
-            neighbouring_hidden_states = []
-            try:
-                response = requests.get(request_string, verify="/shared/certs/cert" + str(self.dst_router_nr) + ".pem")
-            except OSError as e:
-                print("Error: Could not contact API (/api/getHiddenStates): " + repr(e))
-            else:
-                # Add hidden state to list
-                if response.status_code == 200:
-                    data = response.json()
-                    for each in data:
-                        array = np.array(data[each])
-                        neighbouring_hidden_states.append(array)
+        # Get neighbouring hidden states
+        neighbouring_hidden_states = []
+        try:
+            response = requests.get(request_string, verify="/shared/certs/cert" + str(self.dst_router_nr) + ".pem")
+        except OSError as e:
+            print("Error: Could not contact API (/api/getHiddenStates): " + repr(e))
+        else:
+            # Add hidden state to list
+            if response.status_code == 200:
+                data = response.json()
+                for each in data:
+                    array = np.array(data[each])
+                    neighbouring_hidden_states.append(array)
 
-            # Apply message function
-            messages_out = self.message(neighbouring_hidden_states, message_model)
-            # Apply aggregation function
-            big_m = self.aggregate(messages_out)
-            # Apply update function
-            new_hidden_state = self.update(big_m, update_model)
-            new_hidden_state = np.squeeze(new_hidden_state)
-            # Assign new hidden state
-            self.hidden_state = new_hidden_state
+        # Apply message function
+        messages_out = self.message(neighbouring_hidden_states, message_model)
+        # Apply aggregation function
+        big_m = self.aggregate(messages_out)
+        # Apply update function
+        new_hidden_state = self.update(big_m, update_model)
+        new_hidden_state = np.squeeze(new_hidden_state)
+        # Buffer new hidden state
+        self.buffer_state = new_hidden_state
+
+    # This blocks other agents to read (k + 1) hidden state
+    def update_hidden_state(self):
+        self.hidden_state = self.buffer_state
 
     def readout(self):
         hidden_state_correct = self.hidden_state[np.newaxis, :]
@@ -244,6 +251,3 @@ class Agent:
 
         result = np.average(vote_poll, axis=0)
         return result
-
-
-    # def increase_cost(self):
