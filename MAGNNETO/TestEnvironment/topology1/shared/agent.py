@@ -52,7 +52,8 @@ class Agent:
         self.set_weight()
         self.set_source_router()
         # Initialise NN models
-        # self.message_mlp()
+        self.message_model = None
+        self.update_model = None
         self.readout_model = None
 
     def set_weight(self):
@@ -114,7 +115,9 @@ class Agent:
         self.edges = edges
 
     # Edge list is needed to initialise readout MPNN
-    def initialise_readout_mpnn(self):
+    def initialise_mpnn(self):
+        self.message_model = self.message_passing_mlp()
+        self.update_model = self.message_passing_mlp()
         self.readout_model = self.readout_mlp()
 
     """
@@ -180,10 +183,6 @@ class Agent:
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
 
-        # There was an issue while trying to make these models global
-        message_model = self.message_passing_mlp()
-        update_model = self.message_passing_mlp()
-
         # Get neighbouring hidden states
         neighbouring_hidden_states = []
         try:
@@ -199,11 +198,11 @@ class Agent:
                     neighbouring_hidden_states.append(array)
 
         # Apply message function
-        messages_out = self.message(neighbouring_hidden_states, message_model)
+        messages_out = self.message(neighbouring_hidden_states, self.message_model)
         # Apply aggregation function
         big_m = self.aggregate(messages_out)
         # Apply update function
-        new_hidden_state = self.update(big_m, update_model)
+        new_hidden_state = self.update(big_m, self.update_model)
         new_hidden_state = np.squeeze(new_hidden_state)
         # Buffer new hidden state
         self.buffer_state = new_hidden_state

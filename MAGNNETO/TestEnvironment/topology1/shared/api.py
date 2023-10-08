@@ -32,7 +32,7 @@ async def receive_tm():
         edges = data['edges']
         agent.set_traffic_matrix(matrix)
         agent.set_edge_list(edges)
-        agent.initialise_readout_mpnn()
+        agent.initialise_mpnn()
         if first_run:
             agent.set_destination_router()
             agent.set_initial_hidden_state()
