@@ -56,6 +56,12 @@ def get_hidden_states():
     return output
 
 
+@app.get('/api/getEdges')
+def edge_list():
+    # Edge list is common for each agent
+    return agent_list[0].edges
+
+
 @app.get('/api/messagePass')
 def mp():
     void = {}
@@ -88,12 +94,25 @@ def get_readouts():
 
 @app.get('/api/votingEndpoint')
 def vote():
-    void = {}
+    decision = []
     for each_voter in agent_list:
-        print(each_voter.voting_function())
-        void[each_voter.interface] = "successful"
+        decision.append(each_voter.voting_function().tolist())
 
-    return void
+    # Check if all arrays are the same (same values on the same places)
+    for inner_index in range(len(decision[0])):
+        column_sum = 0
+
+        for outer_index in range(len(decision) - 1):
+            column_sum += decision[outer_index][inner_index]
+
+        # Linear combination trick: n_1 + n_2 + n_3 + ... + n_(k - 1) - (k - 1)*n_k = 0
+        column_sum -= (len(decision) - 1) * decision[len(decision) - 1][inner_index]
+
+        if column_sum != 0:
+            return 200
+
+    # Up to this point decision array should contain the same arrays
+    return decision[0]
 
 
 if __name__ == '__main__':

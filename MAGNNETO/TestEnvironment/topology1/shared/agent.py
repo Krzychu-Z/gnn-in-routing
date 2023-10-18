@@ -9,14 +9,10 @@ from keras.layers import Dense, Flatten
 from keras.optimizers import Adam
 
 """
-Hyperparameters
+Learning rates
 """
-DISCOUNT = 0.97
-BETA = 0.9
-EPSILON = 0.01
 MPNN_LEARNING_RATE = 0.0003
 READOUT_LEARNING_RATE = 0.001
-CLIPPING_PARAM = 0.2
 
 
 class Agent:
@@ -43,6 +39,7 @@ class Agent:
     buffer_state = np.zeros(16, dtype=float)
     src_router_nr = 0
     dst_router_nr = 0
+    current_readout = []
 
     def __init__(self, eth):
         self.traffic_matrix = []
@@ -217,8 +214,7 @@ class Agent:
 
         return decision
 
-    @staticmethod
-    def voting_function():
+    def voting_function(self):
         search = True
         index = 1
         readouts = {}
@@ -249,4 +245,6 @@ class Agent:
                     vote_poll = np.append(vote_poll, np.array(readouts[router][interface]), axis=0)
 
         result = np.average(vote_poll, axis=0)
+        self.current_readout = result
+
         return result

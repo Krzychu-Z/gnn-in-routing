@@ -1,13 +1,22 @@
+import numpy as np
+
 import traffic_matrix
 import requests
 import concurrent.futures
 
-
+"""
+HYPERPARAMETERS
+"""
 PERIOD_COUNT = 20         # in paper - T
 MESSAGE_STEPS = 4        # in paper - K
+EPSILON = 0.01
+DISCOUNT = 0.97
+ALPHA = 0.9
 
 WEB_PREFIX = 'https://'
 CERT_PATH = '/shared/certs/cert'
+
+CURRENT_REWARD = []      # Readout result
 
 
 def single_agent_mp(index):
@@ -26,9 +35,12 @@ def update_h_states(index):
 
 
 def voting(index):
+    global CURRENT_REWARD
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/votingEndpoint"
-    requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+    response = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+
+    CURRENT_REWARD = response.json()
 
 
 # Distribute traffic matrix
@@ -59,3 +71,13 @@ for x in range(router_count):
     pool3.submit(voting, x + 1)
 
 pool3.shutdown(wait=True)
+
+# Obtain edge list
+request_string = WEB_PREFIX + 3 * (str(1) + ".") + str(1) + ":8000/api/getEdges"
+response = requests.get(request_string, verify=CERT_PATH + str(1) + ".pem")
+
+edge_list = response.json()
+
+q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
+
+
