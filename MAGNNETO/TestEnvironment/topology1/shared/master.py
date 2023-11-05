@@ -47,6 +47,8 @@ def voting(index):
     CURRENT_REWARD = response.json()
 
 
+# Here main loop begins
+# q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
 # Distribute traffic matrix
 router_count = traffic_matrix.send_tm()
 
@@ -115,6 +117,5 @@ else:
         if avg_util[each + 1] >= load_avg:
             CURRENT_GLOBAL_STATE += 2**(router_count - 1 - each)
 
+print(avg_util)
 print(CURRENT_GLOBAL_STATE)
-
-q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
