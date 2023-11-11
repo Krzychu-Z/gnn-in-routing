@@ -99,20 +99,24 @@ def vote():
         decision.append(each_voter.voting_function().tolist())
 
     # Check if all arrays are the same (same values on the same places)
-    for inner_index in range(len(decision[0])):
-        column_sum = 0
-
-        for outer_index in range(len(decision) - 1):
-            column_sum += decision[outer_index][inner_index]
-
-        # Linear combination trick: n_1 + n_2 + n_3 + ... + n_(k - 1) - (k - 1)*n_k = 0
-        column_sum -= (len(decision) - 1) * decision[len(decision) - 1][inner_index]
-
-        if column_sum != 0:
-            return 200
+    if decision.count(decision[0]) != len(decision):
+        print("Some agents decided otherwise")
+        return 200
 
     # Up to this point decision array should contain the same arrays
     return decision[0]
+
+
+@app.get('/api/raiseWeight')
+def raise_cost():
+    request_link_id = request.args.get('agent')
+    return_code = {}
+    for each_link in agent_list:
+        if each_link.interface == request_link_id:
+            ret = each_link.raise_weight()
+            return_code['code'] = ret
+
+    return return_code
 
 
 if __name__ == '__main__':

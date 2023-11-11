@@ -46,14 +46,14 @@ class Agent:
         self.edges = []
         self.interface = eth
         # Set initial conditions on object construction
-        self.set_weight()
+        self.get_weight()
         self.set_source_router()
         # Initialise NN models
         self.message_model = None
         self.update_model = None
         self.readout_model = None
 
-    def set_weight(self):
+    def get_weight(self):
         interface_ospf_command = "vtysh -c \"do sh ip ospf interface " + self.interface + " json\""
         try:
             interface_ospf = subprocess.run(interface_ospf_command, capture_output=True, shell=True, check=True, text=True)
@@ -61,7 +61,21 @@ class Agent:
             self.current_weight = int(interface_conf['interfaces'][self.interface]['cost'])
             return 0
         except Exception as e:
-            print("Error occurred in set_weight: " + repr(e))
+            print("Error occurred in get_weight: " + repr(e))
+            return 255
+
+    def raise_weight(self):
+        raise_weight_command = "vtysh -c \"int " + self.interface + "\n ip ospf cost " + str(self.current_weight+1) + "\""
+        try:
+            raise_weight_ret = subprocess.run(raise_weight_command, capture_output=True, shell=True, check=True, text=True)
+            if raise_weight_ret.stderr:
+                print("Raise weight error: " + str(raise_weight_ret.stderr))
+            else:
+                # Update weight after changing it
+                self.get_weight()
+            return raise_weight_ret.stderr
+        except Exception as e:
+            print("Non-vtysh error occurred in set_weight: " + repr(e))
             return 255
 
     def set_source_router(self):
@@ -90,6 +104,8 @@ class Agent:
                     break
 
     def set_initial_hidden_state(self):
+        self.hidden_state = np.zeros(16, dtype=float)
+
         # Map router numbers to traffic matrix positions and return value
         if self.src_router_nr == 0:
             print("Source router number has not been established. Couldn't set initial local state.")
@@ -140,9 +156,9 @@ class Agent:
         readout_model.add(Dense(32, activation='relu', input_shape=(16,)))
         readout_model.add(Dense(32*len(self.edges), activation='relu'))
         readout_model.add(Dense(8*len(self.edges), activation='relu'))
-        readout_model.add(Dense(1.5*len(self.edges), activation='relu'))
-        # logit list for each link
-        readout_model.add(Dense(len(self.edges), activation=None))
+        readout_model.add(Dense(4*len(self.edges), activation='relu'))
+        # logit list for each link uplink and downlink
+        readout_model.add(Dense(2*len(self.edges), activation=None))
 
         loss_fn = tf.keras.losses.MeanSquaredError
         readout_model.compile(optimizer=Adam(learning_rate=READOUT_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])

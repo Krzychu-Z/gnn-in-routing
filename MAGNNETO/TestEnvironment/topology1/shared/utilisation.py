@@ -19,7 +19,7 @@ def link_utilisation():
     # Fetch time from boot in seconds
     time_from_boot_cmd = "cat /proc/uptime | awk -F ' ' '{print $1}'"
     time_from_boot = subprocess.run(time_from_boot_cmd, shell=True, check=True, text=True, capture_output=True)
-    time_from_boot = time_from_boot.stdout.strip()
+    time_from_boot = float(time_from_boot.stdout.strip())
 
     for each in interfaces.stdout.splitlines():
         # Fetch ip address
@@ -43,8 +43,8 @@ def link_utilisation():
         # Link Capacity: 1 Mbps
         output[each] = {
             "IP": ip_data,
-            "TX": (int(tx_data)/(1_000_000 * float(time_from_boot)))*100,
-            "RX": (int(rx_data)/(1_000_000 * float(time_from_boot)))*100
+            "TX": (int(tx_data)/(1_000_000 * time_from_boot))*100,
+            "RX": (int(rx_data)/(1_000_000 * time_from_boot))*100
         }
 
     return json.dumps(output)

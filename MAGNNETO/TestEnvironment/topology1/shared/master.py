@@ -1,5 +1,5 @@
 import numpy as np
-
+import misc
 import traffic_matrix
 import requests
 import concurrent.futures
@@ -14,41 +14,36 @@ DISCOUNT = 0.97
 ALPHA = 0.9
 STD_DEV_THRESHOLD = 1e-04
 
-WEB_PREFIX = 'https://'
-CERT_PATH = '/shared/certs/cert'
-
-CURRENT_REWARD = []      # Readout result
+# Readout result
+CURRENT_READOUT = []
 
 # 0 - all routers idle, 2^n - all routers equally load network
 CURRENT_GLOBAL_STATE = 0
 
+# First run -> make decision from readout
+FIRST_RUN = True
 
-def single_agent_mp(index):
-    # Perform GET request
-    request_string = WEB_PREFIX + 3*(str(index)+".") + str(index) + ":8000/api/messagePass"
-    response = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
-
-    print("Message pass at R" + str(index))
-    print("    Details: " + str(response.json()))
-
-
-def update_h_states(index):
-    # Perform GET request
-    request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/updateHiddenStates"
-    requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+WEB_PREFIX = 'https://'
+CERT_PATH = '/shared/certs/cert'
 
 
 def voting(index):
-    global CURRENT_REWARD
+    global CURRENT_READOUT
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/votingEndpoint"
     response = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
-    CURRENT_REWARD = response.json()
+    CURRENT_READOUT = response.json()
 
 
-# Here main loop begins
-# q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
+# Obtain edge list
+request_str = WEB_PREFIX + 3 * (str(1) + ".") + str(1) + ":8000/api/getEdges"
+response = requests.get(request_str, verify=CERT_PATH + str(1) + ".pem")
+edge_list = response.json()
+
+# Q value table
+q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
+
 # Distribute traffic matrix
 router_count = traffic_matrix.send_tm()
 
@@ -58,7 +53,7 @@ for number in range(MESSAGE_STEPS):
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
 
     for x in range(router_count):
-        pool.submit(single_agent_mp, x + 1)
+        pool.submit(misc.single_agent_mp, x + 1)
 
     pool.shutdown(wait=True)
 
@@ -66,11 +61,11 @@ for number in range(MESSAGE_STEPS):
     pool2 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
 
     for x in range(router_count):
-        pool2.submit(update_h_states, x + 1)
+        pool2.submit(misc.update_h_states, x + 1)
 
     pool2.shutdown(wait=True)
 
-# Construct global RL function
+# Perform voting
 pool3 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
 
 for x in range(router_count):
@@ -78,29 +73,8 @@ for x in range(router_count):
 
 pool3.shutdown(wait=True)
 
-# Obtain edge list
-request_string = WEB_PREFIX + 3 * (str(1) + ".") + str(1) + ":8000/api/getEdges"
-response = requests.get(request_string, verify=CERT_PATH + str(1) + ".pem")
-
-edge_list = response.json()
-
 # Compute router-based average egress link utilisation
-avg_util = {}
-
-for router in range(1, router_count + 1):
-    router_util = []
-
-    for edge in edge_list:
-        # Without empty indices
-        indices = [index for index in edge['pair'].split('R') if index != '']
-        # Only edges regarding our current router
-        if str(router) in indices:
-            indices.remove(str(router))
-            egress_id = "to_R" + indices[0] + "_avg"
-            router_util.append(float(edge[egress_id]))
-
-    current_avg = np.average(router_util)
-    avg_util[router] = current_avg
+avg_util = misc.router_avg_util(router_count, edge_list)
 
 # Calculate standard deviation and average
 avg_list = [value for value in avg_util.values()]
@@ -110,6 +84,7 @@ load_avg = np.average(avg_list)
 # Translate avg_util to global environment state
 if std_dev <= STD_DEV_THRESHOLD:
     # Here all routers can be treated as balanced
+    # And we do not change weights in network
     CURRENT_GLOBAL_STATE = 2**router_count - 1
 else:
     # Binary binning
@@ -117,5 +92,16 @@ else:
         if avg_util[each + 1] >= load_avg:
             CURRENT_GLOBAL_STATE += 2**(router_count - 1 - each)
 
-print(avg_util)
+    # Update environment
+    for edge in edge_list:
+        indices = [index for index in edge['pair'].split('R') if index != '']
+        uplink = "to_R" + indices[0] + "_avg"
+        downlink = "to_R" + indices[1] + "_avg"
+
 print(CURRENT_GLOBAL_STATE)
+
+    # if FIRST_RUN:
+        # for agent_val in CURRENT_READOUT:
+
+
+#https://venelinvalkov.medium.com/solving-an-mdp-with-q-learning-from-scratch-deep-reinforcement-learning-for-hackers-part-1-45d1d360c120
