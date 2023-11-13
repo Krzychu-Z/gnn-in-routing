@@ -1,5 +1,5 @@
 from quart import Quart, request
-import utilisation
+import qos
 from agent import Agent
 import json
 
@@ -7,7 +7,7 @@ app = Quart(__name__)
 agent_list = []
 
 # Initialise agents per bidirectional link
-interfaces = utilisation.get_interfaces()
+interfaces = qos.get_interfaces()
 
 for each in interfaces.stdout.splitlines():
     link_agent = Agent(each)
@@ -19,7 +19,12 @@ first_run = True
 
 @app.get('/api/linkUtilisation')
 def packet_count_api():
-    return utilisation.link_utilisation()
+    return qos.link_utilisation()
+
+
+@app.get('/api/getPacketDrop')
+def packet_drop():
+    return qos.packet_drop_detect()
 
 
 @app.post('/api/updateAgent')
@@ -109,10 +114,10 @@ def vote():
 
 @app.get('/api/raiseWeight')
 def raise_cost():
-    request_link_id = request.args.get('agent')
+    request_link_if = request.args.get('agent')
     return_code = {}
     for each_link in agent_list:
-        if each_link.interface == request_link_id:
+        if each_link.interface == request_link_if:
             ret = each_link.raise_weight()
             return_code['code'] = ret
 

@@ -16,8 +16,11 @@ STD_DEV_THRESHOLD = 1e-04
 
 # Readout result
 CURRENT_READOUT = []
+READOUT_MAP = []
 
-# 0 - all routers idle, 2^n - all routers equally load network
+PACKET_DROP_STATS = []
+
+# 0 - all routers in order, 2^n - all routers drop packets
 CURRENT_GLOBAL_STATE = 0
 
 # First run -> make decision from readout
@@ -34,6 +37,18 @@ def voting(index):
     response = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
     CURRENT_READOUT = response.json()
+
+
+def find_packet_drop(index):
+    global PACKET_DROP_STATS
+    # Perform GET request
+    request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/getPacketDrop"
+    res = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+
+    if res.json():
+        PACKET_DROP_STATS = {"R" + str(index): True}
+    else:
+        PACKET_DROP_STATS = {"R" + str(index): False}
 
 
 # Obtain edge list
@@ -73,35 +88,36 @@ for x in range(router_count):
 
 pool3.shutdown(wait=True)
 
-# Compute router-based average egress link utilisation
-avg_util = misc.router_avg_util(router_count, edge_list)
+# Check if there is any packet drop issue in the network
+pool4 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
 
-# Calculate standard deviation and average
-avg_list = [value for value in avg_util.values()]
-std_dev = np.std(avg_list)
-load_avg = np.average(avg_list)
+for x in range(router_count):
+    pool4.submit(find_packet_drop, x + 1)
 
-# Translate avg_util to global environment state
-if std_dev <= STD_DEV_THRESHOLD:
-    # Here all routers can be treated as balanced
-    # And we do not change weights in network
-    CURRENT_GLOBAL_STATE = 2**router_count - 1
-else:
-    # Binary binning
-    for each in range(router_count):
-        if avg_util[each + 1] >= load_avg:
-            CURRENT_GLOBAL_STATE += 2**(router_count - 1 - each)
+pool4.shutdown(wait=True)
 
+# Creating global state
+for each in PACKET_DROP_STATS:
+    for key, val in each.items():
+        router_id = int(key.strip("R"))
+        if val:
+            CURRENT_GLOBAL_STATE += 2**(router_count - router_id)
+
+# Run GNNs if any router reports packet drop
+if CURRENT_GLOBAL_STATE > 0:
     # Update environment
     for edge in edge_list:
         indices = [index for index in edge['pair'].split('R') if index != '']
         uplink = "to_R" + indices[0] + "_avg"
         downlink = "to_R" + indices[1] + "_avg"
 
-print(CURRENT_GLOBAL_STATE)
-
     # if FIRST_RUN:
-        # for agent_val in CURRENT_READOUT:
+        # Map readout
+READOUT_MAP = misc.readout_map(CURRENT_READOUT, edge_list)
+FIRST_RUN = False
+        # Raise cost based on readout
+misc.readout_raise(CURRENT_READOUT, READOUT_MAP, edge_list)
+
 
 
 #https://venelinvalkov.medium.com/solving-an-mdp-with-q-learning-from-scratch-deep-reinforcement-learning-for-hackers-part-1-45d1d360c120

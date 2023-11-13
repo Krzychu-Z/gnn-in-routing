@@ -2,7 +2,6 @@
 File for many functions used by master.py
 """
 import copy
-import numpy as np
 import requests
 
 
@@ -26,34 +25,6 @@ def update_h_states(index):
     requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
 
-def router_avg_util(rtr_count, edges):
-    """
-    Compute router-based average egress link utilisation
-
-    :param rtr_count: number of routers in the network
-    :param edges: list of links in the network
-    :return: router-based statistics
-    """
-    avg_util = {}
-
-    for router in range(1, rtr_count + 1):
-        router_util = []
-
-        for edge in edges:
-            # Without empty indices
-            indices = [index for index in edge['pair'].split('R') if index != '']
-            # Only edges regarding our current router
-            if str(router) in indices:
-                indices.remove(str(router))
-                egress_id = "to_R" + indices[0] + "_avg"
-                router_util.append(float(edge[egress_id]))
-
-        current_avg = np.average(router_util)
-        avg_util[router] = current_avg
-
-    return avg_util
-
-
 def readout_map(readout, edge_list):
     """
     Function used to sort out which readout vector positions refer to what physical links in the network
@@ -73,7 +44,7 @@ def readout_map(readout, edge_list):
         link_utils.append(float(edge[uplink]))
         link_utils.append(float(edge[downlink]))
 
-    ret = []
+    ret = {}
 
     for _ in range(len(readout_copy)):
         for edge in edge_list_copy:
@@ -86,20 +57,16 @@ def readout_map(readout, edge_list):
             downlink = "to_R" + indices[1] + "_avg"
 
             if edge[uplink] == link_utils[min_value_index1]:
-                match = {}
                 directed_ids = "R" + indices[1] + "R" + indices[0]
-                match[directed_ids] = max_value_index2
-                ret.append(match)
+                ret[max_value_index2] = directed_ids
                 # Now duplicated comparison with minimum should not be possible
                 edge[uplink] += 1
                 # Utilisation is a fraction
                 link_utils[min_value_index1] = 2
                 readout_copy[max_value_index2] = min_readout - 1
             elif edge[downlink] == link_utils[min_value_index1]:
-                match = {}
                 directed_ids = "R" + indices[0] + "R" + indices[1]
-                match[directed_ids] = max_value_index2
-                ret.append(match)
+                ret[max_value_index2] = directed_ids
                 # Now duplicated comparison with minimum should not be possible
                 edge[downlink] += 1
                 # Utilisation is a fraction
@@ -107,3 +74,35 @@ def readout_map(readout, edge_list):
                 readout_copy[max_value_index2] = min_readout - 1
 
     return ret
+
+
+def readout_raise(readout, r_map, edges):
+    for position, each in enumerate(readout):
+        # We assume readout consists of logit values
+        if each > 0:
+            link_name = r_map[position]
+            indices = [index for index in link_name.split('R') if index != '']
+            alter_link_name = "R" + indices[0] + "R" + indices[1]
+            alter_2_link_name = "R" + indices[1] + "R" + indices[0]
+
+            for edge in edges:
+                if alter_link_name in edge:
+                    interface_key = "to_R" + indices[1]
+                    if_raise = edge[interface_key]
+                    # Send HTTP request
+                    request_addr = WEB_PREFIX + 3 * (str(indices[0]) + ".") + str(indices[0])
+                    request_purl = ":8000/api/raiseWeight?agent=" + if_raise
+                    request_str = request_addr + request_purl
+                    response = requests.get(request_str, verify=CERT_PATH + str(indices[0]) + ".pem")
+                    err_code = response.json()
+                    print(err_code)
+                elif alter_2_link_name in edge:
+                    interface_key = "to_R" + indices[0]
+                    if_raise = edge[interface_key]
+                    # Send HTTP request
+                    request_addr = WEB_PREFIX + 3 * (str(indices[1]) + ".") + str(indices[1])
+                    request_purl = ":8000/api/raiseWeight?agent=" + if_raise
+                    request_str = request_addr + request_purl
+                    response = requests.get(request_str, verify=CERT_PATH + str(indices[1]) + ".pem")
+                    err_code = response.json()
+                    print(err_code)
