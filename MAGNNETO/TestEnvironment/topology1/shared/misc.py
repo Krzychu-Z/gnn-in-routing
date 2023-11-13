@@ -77,32 +77,23 @@ def readout_map(readout, edge_list):
 
 
 def readout_raise(readout, r_map, edges):
-    for position, each in enumerate(readout):
-        # We assume readout consists of logit values
-        if each > 0:
-            link_name = r_map[position]
-            indices = [index for index in link_name.split('R') if index != '']
-            alter_link_name = "R" + indices[0] + "R" + indices[1]
-            alter_2_link_name = "R" + indices[1] + "R" + indices[0]
+    for edge in edges:
+        for position, each in enumerate(readout):
+            # We assume readout consists of logit values
+            if each > 0:
+                link_name = r_map[position]
+                indices = [index for index in link_name.split('R') if index != '']
+                alter_link_name = "R" + indices[0] + "R" + indices[1]
+                alter_2_link_name = "R" + indices[1] + "R" + indices[0]
 
-            for edge in edges:
-                if alter_link_name in edge:
+                if alter_link_name == edge['pair'] or alter_2_link_name == edge['pair']:
                     interface_key = "to_R" + indices[1]
                     if_raise = edge[interface_key]
                     # Send HTTP request
                     request_addr = WEB_PREFIX + 3 * (str(indices[0]) + ".") + str(indices[0])
                     request_purl = ":8000/api/raiseWeight?agent=" + if_raise
                     request_str = request_addr + request_purl
+                    print("\nRaised using address: " + request_str)
                     response = requests.get(request_str, verify=CERT_PATH + str(indices[0]) + ".pem")
-                    err_code = response.json()
-                    print(err_code)
-                elif alter_2_link_name in edge:
-                    interface_key = "to_R" + indices[0]
-                    if_raise = edge[interface_key]
-                    # Send HTTP request
-                    request_addr = WEB_PREFIX + 3 * (str(indices[1]) + ".") + str(indices[1])
-                    request_purl = ":8000/api/raiseWeight?agent=" + if_raise
-                    request_str = request_addr + request_purl
-                    response = requests.get(request_str, verify=CERT_PATH + str(indices[1]) + ".pem")
                     err_code = response.json()
                     print(err_code)

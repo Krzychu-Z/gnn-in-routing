@@ -65,9 +65,11 @@ class Agent:
             return 255
 
     def raise_weight(self):
-        raise_weight_command = "vtysh -c \"int " + self.interface + "\n ip ospf cost " + str(self.current_weight+1) + "\""
+        enter_interface = "vtysh -c \"conf t\" -c \"interface " + self.interface + "\""
+        raise_cost = " -c \"ip ospf cost " + str(self.current_weight+1) + "\" -c \"exit\" -c \"exit\""
+        raise_command = enter_interface + raise_cost
         try:
-            raise_weight_ret = subprocess.run(raise_weight_command, capture_output=True, shell=True, check=True, text=True)
+            raise_weight_ret = subprocess.run(raise_command, capture_output=True, shell=True, check=True, text=True)
             if raise_weight_ret.stderr:
                 print("Raise weight error: " + str(raise_weight_ret.stderr))
             else:

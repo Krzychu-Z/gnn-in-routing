@@ -52,12 +52,12 @@ def link_utilisation():
 
 
 def packet_drop_detect():
-    # Fetch packet drop stats
-    drop_command = "netstat -i | awk '{print $4, $8}' | tail -n +3"
+    # Fetch packet drop stats - exclude interface to PC and loopback
+    drop_command = "netstat -i | awk '{print $4, $8}' | tail -n +3 | head -n -2"
     drop = subprocess.run(drop_command, shell=True, check=True, text=True, capture_output=True)
     drop = drop.stdout.strip().replace("\n", "").replace(" ", "")
 
     if re.search(r'[1-9]', drop):
-        return 1
+        return True
 
-    return 0
+    return False

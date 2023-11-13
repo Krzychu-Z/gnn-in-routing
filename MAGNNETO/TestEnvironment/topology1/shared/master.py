@@ -43,13 +43,13 @@ def find_packet_drop(index):
     global PACKET_DROP_STATS
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/getPacketDrop"
-    res = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+    result = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
-    if res.json():
-        PACKET_DROP_STATS = {"R" + str(index): True}
-    else:
-        PACKET_DROP_STATS = {"R" + str(index): False}
+    PACKET_DROP_STATS.append({"R" + str(index): result.json()['res']})
 
+
+# Distribute traffic matrix
+router_count = traffic_matrix.send_tm()
 
 # Obtain edge list
 request_str = WEB_PREFIX + 3 * (str(1) + ".") + str(1) + ":8000/api/getEdges"
@@ -58,9 +58,6 @@ edge_list = response.json()
 
 # Q value table
 q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
-
-# Distribute traffic matrix
-router_count = traffic_matrix.send_tm()
 
 # Message passing loop
 for number in range(MESSAGE_STEPS):

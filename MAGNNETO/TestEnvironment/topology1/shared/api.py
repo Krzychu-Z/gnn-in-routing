@@ -24,7 +24,8 @@ def packet_count_api():
 
 @app.get('/api/getPacketDrop')
 def packet_drop():
-    return qos.packet_drop_detect()
+    res = qos.packet_drop_detect()
+    return {"res": res}
 
 
 @app.post('/api/updateAgent')
