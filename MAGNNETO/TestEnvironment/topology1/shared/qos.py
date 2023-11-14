@@ -1,6 +1,7 @@
 import subprocess
 import json
 import re
+import numpy as np
 
 
 def get_interfaces():
@@ -51,13 +52,24 @@ def link_utilisation():
     return json.dumps(output)
 
 
-def packet_drop_detect():
+def packet_drop_detect(prev_drop_count):
     # Fetch packet drop stats - exclude interface to PC and loopback
     drop_command = "netstat -i | awk '{print $4, $8}' | tail -n +3 | head -n -2"
     drop = subprocess.run(drop_command, shell=True, check=True, text=True, capture_output=True)
-    drop = drop.stdout.strip().replace("\n", "").replace(" ", "")
+    drop = drop.stdout.strip().replace("\n", " ").split()
 
-    if re.search(r'[1-9]', drop):
-        return True
+    drop_count = [int(num) for num in drop]
 
-    return False
+    if prev_drop_count == "":
+        gradient = drop_count
+    else:
+        previous_dr_count = np.array(prev_drop_count)
+        next_dr_count = np.array(drop_count)
+
+        gradient = np.subtract(next_dr_count, previous_dr_count)
+
+    for diff in gradient:
+        if diff > 0:
+            return {'detection': True, 'new_grad': gradient}
+
+    return {'detection': False, 'new_grad': gradient}

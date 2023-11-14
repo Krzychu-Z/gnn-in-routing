@@ -5,6 +5,7 @@ import json
 
 app = Quart(__name__)
 agent_list = []
+drop_count = ""
 
 # Initialise agents per bidirectional link
 interfaces = qos.get_interfaces()
@@ -24,8 +25,10 @@ def packet_count_api():
 
 @app.get('/api/getPacketDrop')
 def packet_drop():
-    res = qos.packet_drop_detect()
-    return {"res": res}
+    global drop_count
+    res = qos.packet_drop_detect(drop_count)
+    drop_count = res['new_grad']
+    return {"res": res['detection']}
 
 
 @app.post('/api/updateAgent')

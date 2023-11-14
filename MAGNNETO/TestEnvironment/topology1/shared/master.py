@@ -22,6 +22,7 @@ PACKET_DROP_STATS = []
 
 # 0 - all routers in order, 2^n - all routers drop packets
 CURRENT_GLOBAL_STATE = 0
+NEXT_GLOBAL_STATE = 0
 
 # First run -> make decision from readout
 FIRST_RUN = True
@@ -34,9 +35,9 @@ def voting(index):
     global CURRENT_READOUT
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/votingEndpoint"
-    response = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+    resp = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
-    CURRENT_READOUT = response.json()
+    CURRENT_READOUT = resp.json()
 
 
 def find_packet_drop(index):
@@ -48,6 +49,25 @@ def find_packet_drop(index):
     PACKET_DROP_STATS.append({"R" + str(index): result.json()['res']})
 
 
+def read_global_state(rtr_count):
+    new_pool = concurrent.futures.ThreadPoolExecutor(max_workers=rtr_count)
+
+    for counter in range(rtr_count):
+        new_pool.submit(find_packet_drop, counter + 1)
+
+    new_pool.shutdown(wait=True)
+
+    buffer_state = 0
+
+    for drop in PACKET_DROP_STATS:
+        for key, val in drop.items():
+            router_id = int(key.strip("R"))
+            if val:
+                buffer_state += 2 ** (router_count - router_id)
+
+    return buffer_state
+
+
 # Distribute traffic matrix
 router_count = traffic_matrix.send_tm()
 
@@ -57,64 +77,62 @@ response = requests.get(request_str, verify=CERT_PATH + str(1) + ".pem")
 edge_list = response.json()
 
 # Q value table
-q_value_table = np.zeros((2**len(edge_list), len(edge_list)))
+q_value_table = np.zeros((2**router_count - 1, 2*len(edge_list)))
 
-# Message passing loop
-for number in range(MESSAGE_STEPS):
-    print("\nIteration number: " + str(number + 1))
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
+for large_t in range(3):
+    if large_t != 0:
+        # Distribute traffic matrix
+        traffic_matrix.send_tm()
+
+    # Message passing loop
+    for number in range(MESSAGE_STEPS):
+        print("\nIteration number: " + str(number + 1))
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
+
+        for x in range(router_count):
+            pool.submit(misc.single_agent_mp, x + 1)
+
+        pool.shutdown(wait=True)
+
+        # Update hidden states after all threads close
+        pool2 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
+
+        for x in range(router_count):
+            pool2.submit(misc.update_h_states, x + 1)
+
+        pool2.shutdown(wait=True)
+
+    # Perform voting
+    pool3 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
 
     for x in range(router_count):
-        pool.submit(misc.single_agent_mp, x + 1)
+        pool3.submit(voting, x + 1)
 
-    pool.shutdown(wait=True)
+    pool3.shutdown(wait=True)
 
-    # Update hidden states after all threads close
-    pool2 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
+    # Check if there is any packet drop issue in the network
+    CURRENT_GLOBAL_STATE = read_global_state(router_count)
 
-    for x in range(router_count):
-        pool2.submit(misc.update_h_states, x + 1)
+    # Run GNNs if any router reports packet drop
+    if CURRENT_GLOBAL_STATE > 0:
+        # Update environment
+        for edge in edge_list:
+            indices = [index for index in edge['pair'].split('R') if index != '']
+            uplink = "to_R" + indices[0] + "_avg"
+            downlink = "to_R" + indices[1] + "_avg"
 
-    pool2.shutdown(wait=True)
+        # if FIRST_RUN:
+            # Map readout
+    READOUT_MAP = misc.readout_map(CURRENT_READOUT, edge_list)
+    FIRST_RUN = False
+            # Raise cost based on readout
+    misc.readout_raise(CURRENT_READOUT, READOUT_MAP, edge_list)
+            # Read global state s+1
+    NEXT_GLOBAL_STATE = read_global_state(router_count)
+            # Update Q-values
+    maximum_q = max(q_value_table[NEXT_GLOBAL_STATE])
+    for action, value in enumerate(q_value_table[CURRENT_GLOBAL_STATE]):
+        alpha_part = CURRENT_READOUT[action] + DISCOUNT*maximum_q - value
+        q_value_table[CURRENT_GLOBAL_STATE][action] = value + ALPHA*alpha_part
 
-# Perform voting
-pool3 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
-
-for x in range(router_count):
-    pool3.submit(voting, x + 1)
-
-pool3.shutdown(wait=True)
-
-# Check if there is any packet drop issue in the network
-pool4 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
-
-for x in range(router_count):
-    pool4.submit(find_packet_drop, x + 1)
-
-pool4.shutdown(wait=True)
-
-# Creating global state
-for each in PACKET_DROP_STATS:
-    for key, val in each.items():
-        router_id = int(key.strip("R"))
-        if val:
-            CURRENT_GLOBAL_STATE += 2**(router_count - router_id)
-
-# Run GNNs if any router reports packet drop
-if CURRENT_GLOBAL_STATE > 0:
-    # Update environment
-    for edge in edge_list:
-        indices = [index for index in edge['pair'].split('R') if index != '']
-        uplink = "to_R" + indices[0] + "_avg"
-        downlink = "to_R" + indices[1] + "_avg"
-
-    # if FIRST_RUN:
-        # Map readout
-READOUT_MAP = misc.readout_map(CURRENT_READOUT, edge_list)
-FIRST_RUN = False
-        # Raise cost based on readout
-misc.readout_raise(CURRENT_READOUT, READOUT_MAP, edge_list)
-
-
-
-#https://venelinvalkov.medium.com/solving-an-mdp-with-q-learning-from-scratch-deep-reinforcement-learning-for-hackers-part-1-45d1d360c120
+    print(q_value_table[0])
