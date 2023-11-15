@@ -1,8 +1,0 @@
-ifconfig eth0 10.0.7.3 netmask 255.255.255.0 up
-ifconfig eth1 10.0.3.3 netmask 255.255.255.0 up
-ifconfig eth2 10.0.5.3 netmask 255.255.255.0 up
-ifconfig eth3 10.0.11.3 netmask 255.255.255.0 up
-ifconfig eth4 3.3.3.3 netmask 255.255.255.255 up
-/etc/init.d/frr start
-. venv/bin/activate
-hypercorn --keyfile shared/certs/key3.pem --certfile shared/certs/cert3.pem --bind '3.3.3.3:8000' shared/api.py:app
