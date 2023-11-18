@@ -15,7 +15,7 @@ Below an instruction on how to set it all up and running has been placed.
 ### STEP 1. - Build custom kathara images (assuming your Docker does not store any kathara image)
 ```
 $ pwd
-.../gnn-in-routing/MAGNNETO/TestEnvironment
+.../gnn-in-routing/MAGNNETO
 $ docker build -t kathara/frr -f Dockerfile.FRR .
 $ docker build -t kathara/base -f Dockerfile.Base .
 ```
