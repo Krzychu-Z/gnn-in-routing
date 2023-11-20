@@ -26,6 +26,7 @@ PACKET_DROP_STATS = []
 # 0 - all routers in order, 2^n - all routers drop packets
 CURRENT_GLOBAL_STATE = 0
 NEXT_GLOBAL_STATE = 0
+STABILISATION_START = 0
 
 # First run -> make decision from readout
 FIRST_RUN = True
@@ -116,8 +117,12 @@ for large_t in range(T):
     # Check if there is any packet drop issue in the network
     CURRENT_GLOBAL_STATE = read_global_state(router_count)
 
+
+
     # Run GNNs if any router reports packet drop
     if CURRENT_GLOBAL_STATE > 0:
+        # Begin stabilisation period
+        STABILISATION_START = time.time()
         # Update environment
         for edge in edge_list:
             indices = [index for index in edge['pair'].split('R') if index != '']
@@ -146,6 +151,12 @@ for large_t in range(T):
         for action, value in enumerate(q_value_table[CURRENT_GLOBAL_STATE]):
             alpha_part = CURRENT_READOUT[action] + DISCOUNT*maximum_q - value
             q_value_table[CURRENT_GLOBAL_STATE][action] = value + ALPHA*alpha_part
+
+        if NEXT_GLOBAL_STATE == 0:
+            STABILISATION_STOP = time.time()
+            period = STABILISATION_STOP - STABILISATION_START
+            print("Stabilisation duration: " + str(period) + "s.")
+            STABILISATION_START = 0
 
     # Wait 10 seconds for OSPF to send Hello packets
     print("\nWaiting 10 seconds for OSPF to send Hello packets\n")

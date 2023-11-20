@@ -16,7 +16,7 @@ do
     then
       continue
     else
-      cat /dev/zero | pv -L 1M | nc "$IP" 8888 &
+      cat /dev/zero | pv -L 1G | nc -u "$IP" 8888 &
       PIDS+=("$!")
     fi
   done
