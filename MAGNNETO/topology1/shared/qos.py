@@ -54,14 +54,15 @@ def link_utilisation():
 
 def packet_drop_detect(prev_drop_count):
     # Fetch packet drop stats - exclude interface to PC and loopback
-    drop_command = "netstat -i | awk '{print $4, $8}' | tail -n +3 | head -n -2"
+    drop_command = "netstat -i | awk '{print $5, $9}' | tail -n +3 | head -n -2"
     drop = subprocess.run(drop_command, shell=True, check=True, text=True, capture_output=True)
     drop = drop.stdout.strip().replace("\n", " ").split()
 
     drop_count = [int(num) for num in drop]
 
-    if prev_drop_count == "":
+    if len(prev_drop_count) == 0:
         gradient = drop_count
+        print("First iter")
     else:
         previous_dr_count = np.array(prev_drop_count)
         next_dr_count = np.array(drop_count)
@@ -70,6 +71,6 @@ def packet_drop_detect(prev_drop_count):
 
     for diff in gradient:
         if diff > 0:
-            return {'detection': True, 'new_grad': gradient}
+            return {'detection': True, 'dr_count': drop_count}
 
-    return {'detection': False, 'new_grad': gradient}
+    return {'detection': False, 'dr_count': drop_count}

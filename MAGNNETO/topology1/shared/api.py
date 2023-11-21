@@ -2,10 +2,11 @@ from quart import Quart, request
 import qos
 from agent import Agent
 import json
+import numpy as np
 
 app = Quart(__name__)
 agent_list = []
-drop_count = ""
+drop_count = np.array([])
 
 # Initialise agents per bidirectional link
 interfaces = qos.get_interfaces()
@@ -27,8 +28,8 @@ def packet_count_api():
 def packet_drop():
     global drop_count
     res = qos.packet_drop_detect(drop_count)
-    drop_count = res['new_grad']
-    return {"res": res['detection']}
+    drop_count = res['dr_count']
+    return {"res": res['detection'], "dr": drop_count}
 
 
 @app.post('/api/updateAgent')
