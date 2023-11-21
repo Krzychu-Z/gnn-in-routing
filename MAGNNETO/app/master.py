@@ -15,7 +15,7 @@ MESSAGE_STEPS = 4        # in paper - K
 EPSILON = 0.5
 DISCOUNT = 0.97
 ALPHA = 0.9
-T = 200
+T = 20000
 
 # Readout result
 CURRENT_READOUT = []
@@ -26,6 +26,7 @@ PACKET_DROP_STATS = []
 # 0 - all routers in order, 2^n - all routers drop packets
 CURRENT_GLOBAL_STATE = 0
 NEXT_GLOBAL_STATE = 0
+STABILISATION_START = 0
 
 # First run -> make decision from readout
 FIRST_RUN = True
@@ -45,11 +46,13 @@ def voting(index):
 
 def find_packet_drop(index):
     global PACKET_DROP_STATS
+    PACKET_DROP_STATS = []
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/getPacketDrop"
     result = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
     PACKET_DROP_STATS.append({"R" + str(index): result.json()['res']})
+    print("Packet drop R" + str(index) + ": " + str(result.json()['dr']))
 
 
 def read_global_state(rtr_count):
@@ -116,8 +119,13 @@ for large_t in range(T):
     # Check if there is any packet drop issue in the network
     CURRENT_GLOBAL_STATE = read_global_state(router_count)
 
+    print("Read gl state: " + str(CURRENT_GLOBAL_STATE))
+
     # Run GNNs if any router reports packet drop
     if CURRENT_GLOBAL_STATE > 0:
+        # Begin stabilisation period
+        print("Entered stabilisation period")
+        STABILISATION_START = time.time()
         # Update environment
         for edge in edge_list:
             indices = [index for index in edge['pair'].split('R') if index != '']
@@ -139,6 +147,10 @@ for large_t in range(T):
             else:
                 misc.readout_raise(CURRENT_READOUT, READOUT_MAP, edge_list)
 
+        # Wait 10 seconds for OSPF to send Hello packets
+        print("\nWaiting 10 seconds for OSPF to send Hello packets\n")
+        time.sleep(10)
+
         # Read global state s+1
         NEXT_GLOBAL_STATE = read_global_state(router_count)
         # Update Q-values
@@ -147,6 +159,12 @@ for large_t in range(T):
             alpha_part = CURRENT_READOUT[action] + DISCOUNT*maximum_q - value
             q_value_table[CURRENT_GLOBAL_STATE][action] = value + ALPHA*alpha_part
 
-    # Wait 10 seconds for OSPF to send Hello packets
-    print("\nWaiting 10 seconds for OSPF to send Hello packets\n")
-    time.sleep(10)
+        if NEXT_GLOBAL_STATE == 0:
+            STABILISATION_STOP = time.time()
+            period = STABILISATION_STOP - STABILISATION_START
+            print("Stabilisation duration: " + str(period) + "s.")
+            STABILISATION_START = 0
+    else:
+        # Wait 10 seconds for OSPF to send Hello packets
+        print("\nWaiting 10 seconds for OSPF to send Hello packets\n")
+        time.sleep(10)
