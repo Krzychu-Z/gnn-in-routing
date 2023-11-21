@@ -20,7 +20,8 @@ RUN sed -i -e 's/service/no service/' /etc/frr/vtysh.conf &&\
 RUN apt clean &&\
     rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
 
-RUN apt install -y python3.11-venv &&\
+RUN apt update -y &&\
+    apt install -y python3.11-venv &&\
     python3 -m venv venv &&\
     . venv/bin/activate &&\
     pip3 install requests Quart hypercorn numpy tensorflow keras
