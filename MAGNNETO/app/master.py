@@ -1,6 +1,5 @@
 import random
 import time
-
 import numpy as np
 import misc
 import traffic_matrix
@@ -15,13 +14,15 @@ MESSAGE_STEPS = 4        # in paper - K
 EPSILON = 0.5
 DISCOUNT = 0.97
 ALPHA = 0.9
-T = 20000
+T = 100
 
 # Readout result
 CURRENT_READOUT = []
 READOUT_MAP = []
 
+# Statistics
 PACKET_DROP_STATS = []
+PACKET_DROP_SUM = 0
 
 # 0 - all routers in order, 2^n - all routers drop packets
 CURRENT_GLOBAL_STATE = 0
@@ -45,18 +46,20 @@ def voting(index):
 
 
 def find_packet_drop(index):
-    global PACKET_DROP_STATS
-    PACKET_DROP_STATS = []
+    global PACKET_DROP_STATS, PACKET_DROP_SUM
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/getPacketDrop"
     result = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
     PACKET_DROP_STATS.append({"R" + str(index): result.json()['res']})
     print("Packet drop R" + str(index) + ": " + str(result.json()['dr']))
+    PACKET_DROP_SUM += sum(result.json()['dr'])
 
 
 def read_global_state(rtr_count):
+    global PACKET_DROP_STATS
     new_pool = concurrent.futures.ThreadPoolExecutor(max_workers=rtr_count)
+    PACKET_DROP_STATS = []
 
     for counter in range(rtr_count):
         new_pool.submit(find_packet_drop, counter + 1)
@@ -120,6 +123,18 @@ for large_t in range(T):
     CURRENT_GLOBAL_STATE = read_global_state(router_count)
 
     print("Read gl state: " + str(CURRENT_GLOBAL_STATE))
+    print("Packet drop sum: " + str(PACKET_DROP_SUM))
+
+    # Write results to csv
+    if large_t == 0:
+        f = open('results.csv', 'w')
+        f.write("Large T,\tDropped packets uniform\n")
+        f.write(str(PACKET_DROP_SUM) + "\n")
+    else:
+        f = open('results.csv', 'a')
+        f.write(str(PACKET_DROP_SUM) + "\n")
+
+    f.close()
 
     # Run GNNs if any router reports packet drop
     if CURRENT_GLOBAL_STATE > 0:
@@ -168,3 +183,5 @@ for large_t in range(T):
         # Wait 10 seconds for OSPF to send Hello packets
         print("\nWaiting 10 seconds for OSPF to send Hello packets\n")
         time.sleep(10)
+
+    PACKET_DROP_SUM = 0
