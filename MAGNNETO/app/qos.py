@@ -1,6 +1,5 @@
 import subprocess
 import json
-import re
 import numpy as np
 
 
@@ -62,7 +61,6 @@ def packet_drop_detect(prev_drop_count):
 
     if len(prev_drop_count) == 0:
         gradient = drop_count
-        print("First iter")
     else:
         previous_dr_count = np.array(prev_drop_count)
         next_dr_count = np.array(drop_count)
