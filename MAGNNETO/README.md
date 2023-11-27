@@ -16,12 +16,12 @@ Below an instruction on how to set it all up and running has been placed.
 https://docs.docker.com/engine/install/ubuntu/
 
 ### STEP 2. - Install Kathara
-'''
+```
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 21805A48E6CBBA6B991ABE76646193862B759810
 add-apt-repository ppa:katharaframework/kathara
 apt update
 apt install kathara
-'''
+```
 ### STEP 3. - Build custom kathara images (assuming your Docker does not store any kathara image)
 ```
 $ pwd
