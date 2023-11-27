@@ -11,7 +11,7 @@ HYPERPARAMETERS
 """
 PERIOD_COUNT = 20         # in paper - T
 MESSAGE_STEPS = 4        # in paper - K
-EPSILON = 0.5
+EPSILON = 0.1
 DISCOUNT = 0.97
 ALPHA = 0.9
 T = 100

@@ -80,4 +80,3 @@ Quagga.conf
 Quagga.conf.sav
 /MAGNNETO/TestEnvironment/topology1/_test/
 *.pem
-san*.conf
