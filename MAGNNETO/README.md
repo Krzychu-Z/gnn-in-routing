@@ -22,6 +22,33 @@ add-apt-repository ppa:katharaframework/kathara
 apt update
 apt install kathara
 ```
+Optionally if you want to disable XTERM:
+go to ~/.config/kathara.conf, where ~ is home directory of the user that has installed kathara
+and set open_terminals to false
+
+kathara.conf:
+```
+{
+ "image": "kathara/base",
+ "manager_type": "docker",
+ "terminal": "/usr/bin/xterm",
+ "open_terminals": false,
+ "device_shell": "/bin/bash",
+ "net_prefix": "kathara",
+ "device_prefix": "kathara",
+ "debug_level": "INFO",
+ "print_startup_log": true,
+ "enable_ipv6": false,
+ "last_checked": 1701109997.756936,
+ "hosthome_mount": false,
+ "shared_mount": true,
+ "image_update_policy": "Prompt",
+ "shared_cd": false,
+ "remote_url": null,
+ "cert_path": null,
+ "network_plugin": "kathara/katharanp_vde"
+}
+```
 ### STEP 3. - Build custom kathara images (assuming your Docker does not store any kathara image)
 ```
 $ pwd
