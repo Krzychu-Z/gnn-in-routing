@@ -12,20 +12,30 @@ The owner of this repository is not an author of MAGNNETO nor does he wish to us
 Test environment is deployed using Kathara (www.kathara.org) framework in Docker.
 Below an instruction on how to set it all up and running has been placed.
 
-### STEP 1. - Build custom kathara images (assuming your Docker does not store any kathara image)
+### STEP 1. - Install Docker (on Ubuntu)
+https://docs.docker.com/engine/install/ubuntu/
+
+### STEP 2. - Install Kathara
+'''
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 21805A48E6CBBA6B991ABE76646193862B759810
+add-apt-repository ppa:katharaframework/kathara
+apt update
+apt install kathara
+'''
+### STEP 3. - Build custom kathara images (assuming your Docker does not store any kathara image)
 ```
 $ pwd
 .../gnn-in-routing/MAGNNETO
 $ docker build -t kathara/frr -f Dockerfile.FRR .
 $ docker build -t kathara/base -f Dockerfile.Base .
 ```
-### STEP 2. - Run Kathara Lab
+### STEP 4. - Run Kathara Lab
 ```
 $ cd topology1
 $ kathara lstart
 ```
 
-### STEP 3. - Watch framework execution in debug mode (currently the only one)
+### STEP 5. - Watch framework execution in debug mode (currently the only one)
 In first terminal window (master PC)
 ```
 $ docker exec -it katha (TAB)
