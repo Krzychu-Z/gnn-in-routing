@@ -119,3 +119,10 @@ On some case-sensitive Linux distributions, directories should be lowercase. Her
 ```
 find . -depth -exec sh -c 'mv "$1" "$(dirname "$1")/$(basename "$1" | tr "[:upper:]" "[:lower:]")"' _ {} \;
 ```
+Google Cloud Project restart procedure for topology_mid:
+```
+kathara wipe
+docker network prune
+service docker restart
+kathara lstart
+```
