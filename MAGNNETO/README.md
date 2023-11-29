@@ -114,3 +114,8 @@ Proto Recv-Q Send-Q Local Address           Foreign Address         State       
 (Run Hypercorn server in your terminal window)
 (venv) root@rx:/# hypercorn --keyfile shared/certs/key[x].pem --certfile shared/certs/cert[x].pem --bind 'X.X.X.X:8000' shared/api.py:app
 ```
+# Known issues
+On some case-sensitive Linux distributions, directories should be lowercase. Here's useful command to rename capital letters to small:
+```
+find . -depth -exec sh -c 'mv "$1" "$(dirname "$1")/$(basename "$1" | tr "[:upper:]" "[:lower:]")"' _ {} \;
+```
