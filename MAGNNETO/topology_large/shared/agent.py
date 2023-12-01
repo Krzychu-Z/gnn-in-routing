@@ -1,6 +1,5 @@
 import json
 import subprocess
-import re
 import numpy as np
 import requests
 import tensorflow as tf
@@ -93,12 +92,19 @@ class Agent:
 
     def set_destination_router(self):
         # Get neighbour router based on router name
-        src_router_name = "R" + self.src_router_nr
-
         for each in self.edges:
+            # Split by R
+            ids = [index for index in each['pair'].split('R') if index != '']
             # Find pairs that concern source router
-            if re.search(src_router_name, each['pair']):
-                dst_router_name = each['pair'].replace(src_router_name, "")
+            if ids[0] == str(self.src_router_nr):
+                dst_router_name = "R" + ids[1]
+                dst_router_key = "to_" + dst_router_name
+                if each[dst_router_key] == self.interface:
+                    # This is the agent's interface
+                    self.dst_router_nr = int(dst_router_name.replace("R", ""))
+                    break
+            elif ids[1] == str(self.src_router_nr):
+                dst_router_name = "R" + ids[0]
                 dst_router_key = "to_" + dst_router_name
                 if each[dst_router_key] == self.interface:
                     # This is the agent's interface
