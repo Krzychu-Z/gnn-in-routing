@@ -40,11 +40,11 @@ async def receive_tm():
     for agent in agent_list:
         matrix = data['matrix']
         agent.set_traffic_matrix(matrix)
+        edges = data['edges']
+        agent.set_edge_list(edges)
+        agent.set_initial_hidden_state()
         if first_run:
-            edges = data['edges']
-            agent.set_edge_list(edges)
             agent.set_destination_router()
-            agent.set_initial_hidden_state()
             agent.initialise_mpnn()
 
     response_data = {'message': 'Traffic matrix updated successfully'}

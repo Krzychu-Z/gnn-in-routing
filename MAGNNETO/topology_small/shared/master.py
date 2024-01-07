@@ -11,7 +11,7 @@ HYPERPARAMETERS
 """
 PERIOD_COUNT = 20         # in paper - T
 MESSAGE_STEPS = 4        # in paper - K
-EPSILON = 0.1
+EPSILON = 0.25
 DISCOUNT = 0.97
 ALPHA = 0.9
 T = 100
@@ -141,11 +141,6 @@ for large_t in range(T):
         # Begin stabilisation period
         print("Entered stabilisation period")
         STABILISATION_START = time.time()
-        # Update environment
-        for edge in edge_list:
-            indices = [index for index in edge['pair'].split('R') if index != '']
-            uplink = "to_R" + indices[0] + "_avg"
-            downlink = "to_R" + indices[1] + "_avg"
 
         if FIRST_RUN:
             # Map readout
@@ -179,6 +174,7 @@ for large_t in range(T):
             period = STABILISATION_STOP - STABILISATION_START
             print("Stabilisation duration: " + str(period) + "s.")
             STABILISATION_START = 0
+
     else:
         # Wait 10 seconds for OSPF to send Hello packets
         print("\nWaiting 10 seconds for OSPF to send Hello packets\n")
