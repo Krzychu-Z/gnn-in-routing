@@ -176,8 +176,7 @@ for large_t in range(T):
             STABILISATION_START = 0
 
     else:
-        # Wait 10 seconds for OSPF to send Hello packets
-        print("\nWaiting 10 seconds for OSPF to send Hello packets\n")
+        print("\nWaiting 10 seconds to broaden the time horizon\n")
         time.sleep(10)
 
     PACKET_DROP_SUM = 0

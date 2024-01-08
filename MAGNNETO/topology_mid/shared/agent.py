@@ -137,20 +137,33 @@ class Agent:
 
     # Edge list is needed to initialise readout MPNN
     def initialise_mpnn(self):
-        self.message_model = self.message_passing_mlp()
-        self.update_model = self.message_passing_mlp()
+        self.message_model = self.message_mlp()
+        self.update_model = self.update_mlp()
         self.readout_model = self.readout_mlp()
 
     """
     Fully-connected NN models
     """
-    def message_passing_mlp(self):
+    def message_mlp(self):
         message_model = Sequential()
         # Create a 2D vector consisting of node hidden state and neighbouring hidden state
-        message_model.add(Dense(32, activation='relu', input_shape=(2, self.hidden_state.shape[0])))
-        message_model.add(Dense(64, activation='relu'))
-        message_model.add(Dense(32, activation='relu'))
+        message_model.add(Dense(2*self.hidden_state.shape[0], activation='relu', input_shape=(2, self.hidden_state.shape[0])))
+        message_model.add(Dense(4*self.hidden_state.shape[0], activation='relu'))
+        message_model.add(Dense(2*self.hidden_state.shape[0], activation='relu'))
         message_model.add(Dense(self.hidden_state.shape[0]/2))
+        message_model.add(Flatten())
+
+        loss_fn = tf.keras.losses.MeanSquaredError
+        message_model.compile(optimizer=Adam(learning_rate=MPNN_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
+
+        return message_model
+
+    def update_mlp(self):
+        message_model = Sequential()
+        message_model.add(Dense(3*self.hidden_state.shape[0], activation='relu', input_shape=(3*self.hidden_state.shape[0],)))
+        message_model.add(Dense(4*self.hidden_state.shape[0], activation='relu'))
+        message_model.add(Dense(2*self.hidden_state.shape[0], activation='relu'))
+        message_model.add(Dense(self.hidden_state.shape[0]))
         message_model.add(Flatten())
 
         loss_fn = tf.keras.losses.MeanSquaredError
@@ -161,8 +174,8 @@ class Agent:
     def readout_mlp(self):
         readout_model = Sequential()
         # Analyse only final hidden state
-        readout_model.add(Dense(32, activation='relu', input_shape=(16,)))
-        readout_model.add(Dense(32*len(self.edges), activation='relu'))
+        readout_model.add(Dense(2*self.hidden_state.shape[0], activation='relu', input_shape=(self.hidden_state.shape[0],)))
+        readout_model.add(Dense(2*self.hidden_state.shape[0]*len(self.edges), activation='relu'))
         readout_model.add(Dense(8*len(self.edges), activation='relu'))
         readout_model.add(Dense(4*len(self.edges), activation='relu'))
         # logit list for each link uplink and downlink
@@ -180,23 +193,21 @@ class Agent:
         hidden_states_prepared = [np.vstack((x, self.hidden_state)) for x in n_hidden_states]
         hidden_states_prepared = np.array(hidden_states_prepared)
         hidden_states_trained = model.predict(hidden_states_prepared, verbose=0)
-
         return hidden_states_trained
 
     def aggregate(self, msg_output):
-        if msg_output.shape == (1, self.hidden_state.shape[0]):
+        if msg_output.shape == (1, self.hidden_state.shape[0] / 2):
             return msg_output
         else:
             min_vals = np.amin(msg_output, axis=0)
-            msg_output = np.append(msg_output, min_vals.reshape(1, -1), axis=0)
-            return np.amax(msg_output, axis=0)
+            max_vals = np.amax(msg_output, axis=0)
+            result = np.append(min_vals, max_vals)
+            return result
 
     def update(self, aggregated, model):
-        combination = np.append(self.hidden_state.reshape(1, -1), aggregated.reshape(1, -1), axis=0)
-        # Wrapping with another dimension
-        combination = combination[np.newaxis, :]
+        combination = np.append(self.hidden_state, aggregated)
+        combination = combination.reshape(1, -1)
         new_h = model.predict(combination, verbose=0)
-
         return new_h
 
     def message_pass(self):
