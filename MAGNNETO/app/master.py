@@ -189,3 +189,4 @@ for large_t in range(T):
             STABILISATION_START = 0
 
     PACKET_DROP_SUM = 0
+    PACKET_TOTAL = 0

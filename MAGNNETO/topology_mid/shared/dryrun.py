@@ -5,14 +5,16 @@ import concurrent.futures
 
 T = 100
 PACKET_DROP_SUM = 0
+PACKET_TOTAL = 0
 
 
 def find_packet_drop(index):
-    global PACKET_DROP_SUM
+    global PACKET_DROP_SUM, PACKET_TOTAL
     # Perform GET request
     request_string = "https://" + 3 * (str(index) + ".") + str(index) + ":8000/api/getPacketDrop"
     result = requests.get(request_string, verify='/shared/certs/cert' + str(index) + ".pem")
     PACKET_DROP_SUM += sum(result.json()['dr'])
+    PACKET_TOTAL += sum(result.json()['total'])
 
 
 # Find router count
@@ -32,6 +34,7 @@ while True:
 for large_t in range(T):
     # Get packet drop
     PACKET_DROP_SUM = 0
+    PACKET_TOTAL = 0
 
     new_pool = concurrent.futures.ThreadPoolExecutor(max_workers=rtr_count)
 
@@ -40,7 +43,7 @@ for large_t in range(T):
 
     new_pool.shutdown(wait=True)
 
-    print(PACKET_DROP_SUM)
+    print(str(PACKET_DROP_SUM) + "\t" + str(PACKET_TOTAL))
 
     # Approx duration of T is 40 minutes
     time.sleep(24)
