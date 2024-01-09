@@ -11,9 +11,9 @@ CERT_PATH = '/shared/certs/cert'
 
 
 # Non-return API request functions for parallel call
-def single_agent_mp(index):
+def single_agent_mp(index, step):
     # Perform GET request
-    request_string = WEB_PREFIX + 3*(str(index)+".") + str(index) + ":8000/api/messagePass"
+    request_string = WEB_PREFIX + 3*(str(index)+".") + str(index) + ":8000/api/messagePass?step=" + str(step)
     response = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
     print("Message pass at R" + str(index))
@@ -23,6 +23,12 @@ def single_agent_mp(index):
 def update_h_states(index):
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/updateHiddenStates"
+    requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
+
+
+def readout_workout(index):
+    # Perform GET request
+    request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/trainReadout"
     requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
 
 

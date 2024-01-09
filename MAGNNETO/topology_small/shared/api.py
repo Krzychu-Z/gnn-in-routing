@@ -6,6 +6,8 @@ import numpy as np
 
 app = Quart(__name__)
 agent_list = []
+local_readouts = []
+poll_result = []
 drop_count = np.array([])
 
 # Initialise agents per bidirectional link
@@ -29,7 +31,7 @@ def packet_drop():
     global drop_count
     res = qos.packet_drop_detect(drop_count)
     drop_count = res['dr_count']
-    return {"res": res['detection'], "dr": drop_count}
+    return {"res": res['detection'], "dr": drop_count, "total": res['total']}
 
 
 @app.post('/api/updateAgent')
@@ -74,9 +76,11 @@ def edge_list():
 
 @app.get('/api/messagePass')
 def mp():
+    mp_step = request.args.get('step')
+    mp_step = int(mp_step)
     void = {}
     for each_worker in agent_list:
-        each_worker.message_pass()
+        each_worker.message_pass(mp_step)
         void[each_worker.interface] = "successful"
 
     return void
@@ -104,9 +108,11 @@ def get_readouts():
 
 @app.get('/api/votingEndpoint')
 def vote():
+    global poll_result
     decision = []
     for each_voter in agent_list:
-        decision.append(each_voter.voting_function().tolist())
+        decision.append(each_voter.voting_function()[0].tolist())
+        local_readouts.append(each_voter.voting_function()[1])
 
     # Check if all arrays are the same (same values on the same places)
     if decision.count(decision[0]) != len(decision):
@@ -114,7 +120,19 @@ def vote():
         return 200
 
     # Up to this point decision array should contain the same arrays
+    poll_result = decision[0]
     return decision[0]
+
+
+@app.get('/api/trainReadout')
+def workout():
+    void = {}
+    global poll_result
+    # Teach readout NN
+    for agent_id, each_trainee in enumerate(agent_list):
+        each_trainee.teach_readout(local_readouts[agent_id], poll_result)
+
+    return void
 
 
 @app.get('/api/raiseWeight')

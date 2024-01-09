@@ -153,7 +153,7 @@ class Agent:
         message_model.add(Dense(self.hidden_state.shape[0]/2))
         message_model.add(Flatten())
 
-        loss_fn = tf.keras.losses.MeanSquaredError
+        loss_fn = tf.keras.losses.MeanSquaredError()
         message_model.compile(optimizer=Adam(learning_rate=MPNN_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
 
         return message_model
@@ -166,7 +166,7 @@ class Agent:
         message_model.add(Dense(self.hidden_state.shape[0]))
         message_model.add(Flatten())
 
-        loss_fn = tf.keras.losses.MeanSquaredError
+        loss_fn = tf.keras.losses.MeanSquaredError()
         message_model.compile(optimizer=Adam(learning_rate=MPNN_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
 
         return message_model
@@ -181,7 +181,7 @@ class Agent:
         # logit list for each link uplink and downlink
         readout_model.add(Dense(2*len(self.edges), activation=None))
 
-        loss_fn = tf.keras.losses.MeanSquaredError
+        loss_fn = tf.keras.losses.MeanSquaredError()
         readout_model.compile(optimizer=Adam(learning_rate=READOUT_LEARNING_RATE), loss=loss_fn, metrics=['accuracy'])
 
         return readout_model
@@ -189,28 +189,43 @@ class Agent:
     """
     Three agent functions mentioned in the paper
     """
-    def message(self, n_hidden_states, model):
+    def message(self, n_hidden_states, model, k_step):
         hidden_states_prepared = [np.vstack((x, self.hidden_state)) for x in n_hidden_states]
         hidden_states_prepared = np.array(hidden_states_prepared)
         hidden_states_trained = model.predict(hidden_states_prepared, verbose=0)
+
+        # "Autoencoder" part
+        if k_step != 0:
+            n_hidden_states = np.vstack(n_hidden_states)
+
+            model.fit(hidden_states_prepared, n_hidden_states, epochs=3, verbose=0)
+
         return hidden_states_trained
 
     def aggregate(self, msg_output):
-        if msg_output.shape == (1, self.hidden_state.shape[0] / 2):
-            return msg_output
+        if msg_output.shape == (1, self.hidden_state.shape[0]):
+            return np.append(msg_output, msg_output)
         else:
             min_vals = np.amin(msg_output, axis=0)
             max_vals = np.amax(msg_output, axis=0)
             result = np.append(min_vals, max_vals)
             return result
 
-    def update(self, aggregated, model):
+    def update(self, aggregated, model, k_step):
         combination = np.append(self.hidden_state, aggregated)
         combination = combination.reshape(1, -1)
         new_h = model.predict(combination, verbose=0)
+
+        # "Autoencoder" part
+        if k_step != 0:
+            long_aggr = np.append(aggregated, np.zeros(len(self.hidden_state)))
+            long_aggr = long_aggr.reshape(1, -1)
+
+            model.fit(long_aggr, self.hidden_state[np.newaxis, :], epochs=3, verbose=0)
+
         return new_h
 
-    def message_pass(self):
+    def message_pass(self, step_nr):
         request_string_address = "https://" + 3*(str(self.dst_router_nr) + ".") + str(self.dst_router_nr)
         request_string_purl = ":8000/api/getHiddenStates?src=" + self.src_router_nr
         request_string = request_string_address + request_string_purl
@@ -230,11 +245,11 @@ class Agent:
                     neighbouring_hidden_states.append(array)
 
         # Apply message function
-        messages_out = self.message(neighbouring_hidden_states, self.message_model)
+        messages_out = self.message(neighbouring_hidden_states, self.message_model, step_nr)
         # Apply aggregation function
         big_m = self.aggregate(messages_out)
         # Apply update function
-        new_hidden_state = self.update(big_m, self.update_model)
+        new_hidden_state = self.update(big_m, self.update_model, step_nr)
         new_hidden_state = np.squeeze(new_hidden_state)
         # Buffer new hidden state
         self.buffer_state = new_hidden_state
@@ -248,6 +263,18 @@ class Agent:
         decision = self.readout_model.predict(hidden_state_correct, verbose=0)
 
         return decision
+
+    def teach_readout(self, local_r, global_r):
+        # NN wraps output with useless dimension
+        local_r = local_r[0]
+        impute_count = len(self.hidden_state) - len(local_r)
+
+        local_r = np.append(local_r, np.zeros(impute_count))
+        local_r = local_r[np.newaxis, :]
+
+        global_r = np.array(global_r)
+        global_r = global_r[np.newaxis, :]
+        self.readout_model.fit(local_r, global_r, epochs=3, verbose=0)
 
     def voting_function(self):
         search = True
@@ -282,4 +309,8 @@ class Agent:
         result = np.average(vote_poll, axis=0)
         self.current_readout = result
 
-        return result
+        # local readout
+        rtr_name = "R" + self.src_router_nr
+        local_readout = readouts[rtr_name][self.interface]
+
+        return result, local_readout

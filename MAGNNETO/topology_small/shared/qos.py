@@ -44,8 +44,8 @@ def link_utilisation():
         # Link Capacity: 1 Mbps
         output[each] = {
             "IP": ip_data,
-            "TX": (int(tx_data)/(1_000_000 * time_from_boot))*100,
-            "RX": (int(rx_data)/(1_000_000 * time_from_boot))*100
+            "TX": (int(tx_data) / (1_000_000 * time_from_boot)) * 100,
+            "RX": (int(rx_data) / (1_000_000 * time_from_boot)) * 100
         }
 
     return json.dumps(output)
@@ -57,7 +57,14 @@ def packet_drop_detect(prev_drop_count):
     drop = subprocess.run(drop_command, shell=True, check=True, text=True, capture_output=True)
     drop = drop.stdout.strip().replace("\n", " ").split()
 
+    # Fetch overall packet count
+    packets_command = "netstat -i | awk '{print $3, $4, $5, $6, $7, $8, $9, $10}' | tail -n +3 | head -n -2"
+    packets = subprocess.run(packets_command, shell=True, check=True, text=True, capture_output=True)
+    packets = packets.stdout.strip().replace("\n", " ").split()
+
     drop_count = [int(num) for num in drop]
+
+    packets_count = [int(num) for num in packets]
 
     if len(prev_drop_count) == 0:
         gradient = drop_count
@@ -69,6 +76,6 @@ def packet_drop_detect(prev_drop_count):
 
     for diff in gradient:
         if diff > 0:
-            return {'detection': True, 'dr_count': drop_count}
+            return {'detection': True, 'dr_count': drop_count, 'total': packets_count}
 
-    return {'detection': False, 'dr_count': drop_count}
+    return {'detection': False, 'dr_count': drop_count, 'total': packets_count}

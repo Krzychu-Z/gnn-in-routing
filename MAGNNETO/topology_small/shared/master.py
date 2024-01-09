@@ -11,7 +11,7 @@ HYPERPARAMETERS
 """
 PERIOD_COUNT = 20         # in paper - T
 MESSAGE_STEPS = 4        # in paper - K
-EPSILON = 0.25
+EPSILON = 0.1
 DISCOUNT = 0.97
 ALPHA = 0.9
 T = 100
@@ -23,6 +23,7 @@ READOUT_MAP = []
 # Statistics
 PACKET_DROP_STATS = []
 PACKET_DROP_SUM = 0
+PACKET_TOTAL = 0
 
 # 0 - all routers in order, 2^n - all routers drop packets
 CURRENT_GLOBAL_STATE = 0
@@ -46,7 +47,7 @@ def voting(index):
 
 
 def find_packet_drop(index):
-    global PACKET_DROP_STATS, PACKET_DROP_SUM
+    global PACKET_DROP_STATS, PACKET_DROP_SUM, PACKET_TOTAL
     # Perform GET request
     request_string = WEB_PREFIX + 3 * (str(index) + ".") + str(index) + ":8000/api/getPacketDrop"
     result = requests.get(request_string, verify=CERT_PATH + str(index) + ".pem")
@@ -54,6 +55,7 @@ def find_packet_drop(index):
     PACKET_DROP_STATS.append({"R" + str(index): result.json()['res']})
     print("Packet drop R" + str(index) + ": " + str(result.json()['dr']))
     PACKET_DROP_SUM += sum(result.json()['dr'])
+    PACKET_TOTAL += sum(result.json()['total'])
 
 
 def read_global_state(rtr_count):
@@ -72,7 +74,7 @@ def read_global_state(rtr_count):
         for key, val in drop.items():
             router_id = int(key.strip("R"))
             if val:
-                buffer_state += 2 ** (rtr_count - router_id)
+                buffer_state += 2 ** (router_count - router_id)
 
     return buffer_state
 
@@ -99,7 +101,7 @@ for large_t in range(T):
         pool = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
 
         for x in range(router_count):
-            pool.submit(misc.single_agent_mp, x + 1)
+            pool.submit(misc.single_agent_mp, x + 1, number)
 
         pool.shutdown(wait=True)
 
@@ -119,20 +121,31 @@ for large_t in range(T):
 
     pool3.shutdown(wait=True)
 
+    # Train readout
+    pool4 = concurrent.futures.ThreadPoolExecutor(max_workers=router_count)
+
+    for x in range(router_count):
+        pool4.submit(misc.readout_workout, x + 1)
+
+    pool4.shutdown(wait=True)
+
     # Check if there is any packet drop issue in the network
     CURRENT_GLOBAL_STATE = read_global_state(router_count)
 
     print("Read gl state: " + str(CURRENT_GLOBAL_STATE))
     print("Packet drop sum: " + str(PACKET_DROP_SUM))
 
+    # Determine packet ratio
+    ratio = (PACKET_DROP_SUM/PACKET_TOTAL)*100
+
     # Write results to csv
     if large_t == 0:
         f = open('results.csv', 'w')
         f.write("Large T,\tDropped packets uniform\n")
-        f.write(str(PACKET_DROP_SUM) + "\n")
+        f.write(str(PACKET_DROP_SUM) + "\t" + str(ratio) + "\n")
     else:
         f = open('results.csv', 'a')
-        f.write(str(PACKET_DROP_SUM) + "\n")
+        f.write(str(PACKET_DROP_SUM) + "\t" + str(ratio) + "\n")
 
     f.close()
 
@@ -174,9 +187,5 @@ for large_t in range(T):
             period = STABILISATION_STOP - STABILISATION_START
             print("Stabilisation duration: " + str(period) + "s.")
             STABILISATION_START = 0
-
-    else:
-        print("\nWaiting 10 seconds to broaden the time horizon\n")
-        time.sleep(10)
 
     PACKET_DROP_SUM = 0
