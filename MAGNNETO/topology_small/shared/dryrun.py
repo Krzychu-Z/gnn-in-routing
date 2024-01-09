@@ -43,7 +43,8 @@ for large_t in range(T):
 
     new_pool.shutdown(wait=True)
 
-    print(str(PACKET_DROP_SUM) + "\t" + str(PACKET_TOTAL))
+    packet_percent = (PACKET_DROP_SUM/PACKET_TOTAL)*100
+    print(str(PACKET_DROP_SUM) + "\t" + str(packet_percent))
 
-    # Approx duration of T is 40 minutes
-    time.sleep(24)
+    # Approx duration of T is 25 minutes
+    time.sleep(15)
